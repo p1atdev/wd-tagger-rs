@@ -19,6 +19,8 @@ pub enum Device {
 }
 
 /// Model for the Tagger
+#[derive(Debug)]
+
 pub struct TaggerModel {
     session: Session,
 }

@@ -1,4 +1,5 @@
-use std::{collections::HashMap, fs::File, path::Path};
+use std::collections::HashMap;
+use std::{collections::BTreeMap, fs::File, path::Path};
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -51,7 +52,12 @@ impl Tag {
 }
 
 /// The tags in the CSV file
-pub struct LabelTags(Vec<Tag>);
+#[derive(Debug, Clone)]
+pub struct LabelTags {
+    total_tags: usize,
+    label2tag: HashMap<String, Tag>,
+    idx2tag: HashMap<usize, Tag>,
+}
 
 impl LabelTags {
     /// Load from the local CSV file
@@ -59,12 +65,26 @@ impl LabelTags {
         let file = File::open(csv_path).map_err(|e| TaggerError::Tag(e.to_string()))?;
         let mut rdr = csv::Reader::from_reader(file);
 
-        let tags = rdr
+        let tag_list = rdr
             .deserialize()
             .map(|result| result.map_err(|e| TaggerError::Tag(e.to_string())))
             .collect::<Result<Vec<Tag>, TaggerError>>()?;
 
-        Ok(Self(tags))
+        let total_tags = tag_list.len();
+        let label2tag = tag_list
+            .iter()
+            .map(|tag| (tag.name.clone(), tag.clone()))
+            .collect::<HashMap<String, Tag>>();
+        let idx2tag = tag_list
+            .into_iter()
+            .enumerate()
+            .collect::<HashMap<usize, Tag>>();
+
+        Ok(Self {
+            total_tags,
+            label2tag,
+            idx2tag,
+        })
     }
 
     pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
@@ -78,10 +98,10 @@ impl LabelTags {
         tensor: Vec<Vec<f32>>,
     ) -> Result<Vec<HashMap<String, f32>>, TaggerError> {
         fn map_pair(
-            tags: &Vec<Tag>,
+            idx2tags: &HashMap<usize, Tag>,
             probs: &Vec<f32>,
         ) -> Result<HashMap<String, f32>, TaggerError> {
-            if &tags.len() != &probs.len() {
+            if &idx2tags.len() != &probs.len() {
                 return Err(TaggerError::Tag(
                     "Tags and probabilities length mismatch".to_string(),
                 ));
@@ -89,19 +109,23 @@ impl LabelTags {
 
             Ok(probs
                 .iter()
-                .zip(tags)
-                .map(|(prob, tag)| (tag.name.clone(), *prob))
+                .enumerate()
+                .map(|(idx, prob)| (idx2tags.get(&idx).unwrap().name(), prob.clone()))
                 .collect::<HashMap<String, f32>>())
         }
 
         tensor
             .iter() // batch
-            .map(|probs| map_pair(&self.0, &probs))
+            .map(|probs| map_pair(&self.idx2tag, &probs))
             .collect::<Result<Vec<HashMap<String, f32>>, TaggerError>>()
     }
 
-    pub fn get(&self) -> &Vec<Tag> {
-        &self.0
+    pub fn label2tag(&self) -> &HashMap<String, Tag> {
+        &self.label2tag
+    }
+
+    pub fn idx2tag(&self) -> &HashMap<usize, Tag> {
+        &self.idx2tag
     }
 }
 
@@ -120,7 +144,19 @@ mod test {
             .unwrap();
         let tags = LabelTags::load(csv_path).unwrap();
 
-        dbg!(&tags.0[0..5]);
+        dbg!(&tags.label2tag().iter().take(5));
+
+        // sort by idx, smaller idx first
+        let mut top = tags.idx2tag().iter().collect::<Vec<_>>();
+        top.sort_by(|(idx1, _), (idx2, _)| idx1.cmp(idx2));
+
+        assert_eq!(
+            top.iter()
+                .take(5)
+                .map(|(_idx, tag)| tag.name.clone())
+                .collect::<Vec<_>>(),
+            vec!["general", "sensitive", "questionable", "explicit", "1girl",]
+        );
     }
 
     #[test]
@@ -132,7 +168,7 @@ mod test {
 
         let random_prob = (0..4)
             .map(|_| {
-                (0..tags.0.len())
+                (0..tags.total_tags)
                     .map(|_| random::<f32>())
                     .collect::<Vec<f32>>()
             })
@@ -150,7 +186,7 @@ mod test {
 
         let random_prob = (0..4)
             .map(|_| {
-                (0..tags.0.len() + 100) // wrong size!
+                (0..tags.total_tags + 100) // wrong size!
                     .map(|_| random::<f32>())
                     .collect::<Vec<f32>>()
             })
