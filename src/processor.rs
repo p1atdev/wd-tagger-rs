@@ -56,6 +56,8 @@ impl ImagePreprocessor {
 }
 
 impl ImageProcessor for ImagePreprocessor {
+    /// Preprocess the image for the model input.
+    /// Ref: https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py#L112-L162
     fn process(&self, image: DynamicImage) -> Result<Array<f32, Ix4>> {
         let image_rgba = image.to_rgba8();
         let (width, height) = image.dimensions();

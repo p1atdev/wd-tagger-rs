@@ -1,9 +1,11 @@
 use std::path::Path;
 
 use anyhow::Result;
+use ndarray::{Array, Ix4};
 use ort::{CUDAExecutionProvider, GraphOptimizationLevel, Session};
 
 use crate::error::TaggerError;
+use crate::file::{HfFile, TaggerModelFile};
 
 /// Enum for selecting the CUDA device
 pub enum Device {
@@ -16,10 +18,14 @@ pub enum Device {
     CudaDevice(i32),
 }
 
-/// ONNX Runtime Model Trait
-pub trait OrtModel {
+/// Model for the Tagger
+pub struct TaggerModel {
+    session: Session,
+}
+
+impl TaggerModel {
     /// Specify the devices to use
-    fn use_devices(devices: Vec<Device>) -> Result<(), TaggerError> {
+    pub fn use_devices(devices: Vec<Device>) -> Result<(), TaggerError> {
         use ort::CPUExecutionProvider;
 
         tracing_subscriber::fmt::init();
@@ -41,15 +47,8 @@ pub trait OrtModel {
             Err(e) => Err(TaggerError::Cuda(e.to_string())),
         }
     }
-}
 
-/// Model for the Tagger
-pub struct TaggerModel {
-    session: Session,
-}
-
-impl TaggerModel {
-    /// Initialize with the model_path
+    /// Load the model directly using the local file path
     pub fn load<P: AsRef<Path>>(model_path: P) -> Result<Self, TaggerError> {
         let builder = match Session::builder() {
             Ok(builder) => builder,
@@ -64,9 +63,27 @@ impl TaggerModel {
 
         Ok(Self { session })
     }
-}
 
-impl OrtModel for TaggerModel {}
+    /// Load the model in user-friendly way using the repo_id
+    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
+        let model_path = TaggerModelFile::new(repo_id.to_string())
+            .get()
+            .map_err(|e| TaggerError::Hf(e.to_string()))?;
+
+        Self::load(model_path)
+    }
+
+    pub fn predict(&self, input_tensor: Array<f32, Ix4>) -> Result<()> {
+        let inputs = ort::inputs![input_tensor].unwrap();
+        let output = self.session.run(inputs).unwrap();
+        let logits = output["output"].try_extract_tensor::<f32>().unwrap();
+
+        // TODO: Implement the post-processing
+        println!("{}", logits);
+
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -74,6 +91,14 @@ mod test {
     use crate::file::{HfFile, TaggerModelFile};
     use crate::processor::{ImagePreprocessor, ImageProcessor};
     use image;
+    use ndarray::{s, Axis};
+    use ort::SessionOutputs;
+
+    #[test]
+    fn test_use_cpu() {
+        let devices = vec![Device::Cpu];
+        assert!(TaggerModel::use_devices(devices).is_ok());
+    }
 
     #[test]
     fn test_use_cuda_auto() {
@@ -97,6 +122,11 @@ mod test {
     }
 
     #[test]
+    fn test_from_pretrained() {
+        let _ = TaggerModel::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3").is_ok();
+    }
+
+    #[test]
     fn test_run_tagger_model() {
         let model_path = TaggerModelFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
             .get()
@@ -109,9 +139,24 @@ mod test {
         let tensor = processor.process(image).unwrap();
         let inputs = ort::inputs![tensor].unwrap();
 
-        let output = model.session.run(inputs).unwrap();
-        let logits = output["output"].try_extract_tensor::<f32>().unwrap();
+        let output: SessionOutputs = model.session.run(inputs).unwrap();
+        let preds = output["output"]
+            .try_extract_tensor::<f32>()
+            .unwrap()
+            .into_owned();
 
-        println!("{}", logits);
+        dbg!(&output);
+        println!("{}", &preds);
+
+        let preds = preds
+            .axis_iter(Axis(0))
+            .map(|row| row.iter().copied().collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        dbg!("Total", &preds.len());
+
+        for pred in preds.iter() {
+            dbg!("Len:", &pred.len());
+        }
     }
 }

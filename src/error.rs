@@ -10,6 +10,8 @@ pub enum TaggerError {
     Cuda(String),
     /// Error around the processor
     Processor(String),
+    /// Error around the tag
+    Tag(String),
 }
 
 impl Display for TaggerError {
@@ -19,6 +21,7 @@ impl Display for TaggerError {
             TaggerError::Ort(message) => write!(f, "ONNX Runtime Error: {}", message),
             TaggerError::Cuda(message) => write!(f, "CUDA Error: {}", message),
             TaggerError::Processor(message) => write!(f, "Processor Error: {}", message),
+            TaggerError::Tag(message) => write!(f, "Tag Error: {}", message),
         }
     }
 }
