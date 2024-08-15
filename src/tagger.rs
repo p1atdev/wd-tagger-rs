@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Result;
-use ndarray::{Array, Ix4};
+use ndarray::{Array, Axis, Ix4};
 use ort::{CPUExecutionProvider, CUDAExecutionProvider, GraphOptimizationLevel, Session};
 
 use crate::error::TaggerError;
@@ -74,15 +74,20 @@ impl TaggerModel {
         Self::load(model_path)
     }
 
-    pub fn predict(&self, input_tensor: Array<f32, Ix4>) -> Result<()> {
-        let inputs = ort::inputs![input_tensor].unwrap();
-        let output = self.session.run(inputs).unwrap();
-        let logits = output["output"].try_extract_tensor::<f32>().unwrap();
+    pub fn predict(&self, input_tensor: Array<f32, Ix4>) -> Result<Vec<Vec<f32>>, TaggerError> {
+        let inputs = ort::inputs![input_tensor].map_err(|e| TaggerError::Ort(e.to_string()))?;
+        let output = self
+            .session
+            .run(inputs)
+            .map_err(|e| TaggerError::Ort(e.to_string()))?;
+        let preds = output["output"].try_extract_tensor::<f32>().unwrap();
 
-        // TODO: Implement the post-processing
-        println!("{}", logits);
+        let preds = preds
+            .axis_iter(Axis(0))
+            .map(|row| row.iter().copied().collect::<Vec<_>>())
+            .collect::<Vec<_>>();
 
-        Ok(())
+        Ok(preds)
     }
 }
 
@@ -135,9 +140,9 @@ mod test {
 
         let model = TaggerModel::load(model_path).unwrap();
 
-        let image = image::open("assets/sample1_3x448x448.webp").unwrap();
+        let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
         let processor = ImagePreprocessor::new(3, 448, 448);
-        let tensor = processor.process(image).unwrap();
+        let tensor = processor.process(&image).unwrap();
         let inputs = ort::inputs![tensor].unwrap();
 
         let output: SessionOutputs = model.session.run(inputs).unwrap();

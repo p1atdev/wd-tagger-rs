@@ -5,23 +5,27 @@ use image::{DynamicImage, GenericImageView, ImageBuffer, RgbImage, Rgba};
 use ndarray::{Array, Axis, Ix4};
 
 pub trait ImageProcessor {
-    fn process(&self, iamge: DynamicImage) -> Result<Array<f32, Ix4>>;
-    fn process_batch(&self, images: Vec<DynamicImage>) -> Result<Array<f32, Ix4>> {
+    fn process(&self, iamge: &DynamicImage) -> Result<Array<f32, Ix4>, TaggerError>;
+    fn process_batch(&self, images: Vec<DynamicImage>) -> Result<Array<f32, Ix4>, TaggerError> {
         let mut image_tensors = Vec::new();
 
         for image in images {
-            image_tensors.push(self.process(image)?);
+            image_tensors.push(self.process(&image)?);
         }
 
-        let batch_tensor = ndarray::concatenate(
+        if let Ok(batch_tensor) = ndarray::concatenate(
             Axis(0),
             &image_tensors
                 .iter()
                 .map(|tensor| tensor.view())
                 .collect::<Vec<_>>(),
-        )?;
+        ) {
+            return Ok(batch_tensor);
+        }
 
-        Ok(batch_tensor)
+        Err(TaggerError::Processor(
+            "Failed to process batch".to_string(),
+        ))
     }
 }
 
@@ -63,9 +67,9 @@ impl ImagePreprocessor {
 impl ImageProcessor for ImagePreprocessor {
     /// Preprocess the image for the model input.
     /// Ref: https://huggingface.co/spaces/SmilingWolf/wd-tagger/blob/main/app.py#L112-L162
-    fn process(&self, image: DynamicImage) -> Result<Array<f32, Ix4>> {
-        let image_rgba = image.to_rgba8();
-        let (width, height) = image.dimensions();
+    fn process(&self, image: &DynamicImage) -> Result<Array<f32, Ix4>, TaggerError> {
+        let image_rgba = &image.to_rgba8();
+        let (width, height) = image.dimensions().clone();
 
         // Create a canvas and composite image on top of it
         let canvas = ImageBuffer::from_fn(width, height, |x, y| {
@@ -126,11 +130,11 @@ mod test {
 
     #[test]
     fn test_process_image() {
-        let image = image::open("assets/sample1_3x448x448.webp").unwrap();
+        let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
 
         let processor = ImagePreprocessor::new(3, 448, 448);
 
-        let tensor = processor.process(image).unwrap();
+        let tensor = processor.process(&image).unwrap();
 
         println!("{}", tensor);
         dbg!(tensor.shape());

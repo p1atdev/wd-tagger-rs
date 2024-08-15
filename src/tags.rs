@@ -5,9 +5,10 @@ use serde::Deserialize;
 
 use crate::error::TaggerError;
 use crate::file::{HfFile, TagCSVFile};
+
 /// Each record in the CSV file
-#[derive(Debug, Deserialize)]
-struct Tag {
+#[derive(Debug, Deserialize, Clone)]
+pub struct Tag {
     tag_id: i32,
     name: String,
     category: TagCategory,
@@ -15,7 +16,7 @@ struct Tag {
 }
 
 /// Tag category
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 pub enum TagCategory {
     #[serde(rename = "0")]
     General,
@@ -31,10 +32,26 @@ pub enum TagCategory {
     Rating,
 }
 
-/// The tags in the CSV file
-pub struct LabelTags {
-    tags: Vec<Tag>,
+impl Tag {
+    pub fn category(&self) -> TagCategory {
+        self.category.clone()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn tag_id(&self) -> i32 {
+        self.tag_id
+    }
+
+    pub fn count(&self) -> i32 {
+        self.count
+    }
 }
+
+/// The tags in the CSV file
+pub struct LabelTags(Vec<Tag>);
 
 impl LabelTags {
     /// Load from the local CSV file
@@ -47,7 +64,7 @@ impl LabelTags {
             .map(|result| result.map_err(|e| TaggerError::Tag(e.to_string())))
             .collect::<Result<Vec<Tag>, TaggerError>>()?;
 
-        Ok(Self { tags })
+        Ok(Self(tags))
     }
 
     pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
@@ -79,8 +96,12 @@ impl LabelTags {
 
         tensor
             .iter() // batch
-            .map(|probs| map_pair(&self.tags, &probs))
+            .map(|probs| map_pair(&self.0, &probs))
             .collect::<Result<Vec<HashMap<String, f32>>, TaggerError>>()
+    }
+
+    pub fn get(&self) -> &Vec<Tag> {
+        &self.0
     }
 }
 
@@ -99,7 +120,7 @@ mod test {
             .unwrap();
         let tags = LabelTags::load(csv_path).unwrap();
 
-        dbg!(&tags.tags[0..5]);
+        dbg!(&tags.0[0..5]);
     }
 
     #[test]
@@ -111,7 +132,7 @@ mod test {
 
         let random_prob = (0..4)
             .map(|_| {
-                (0..tags.tags.len())
+                (0..tags.0.len())
                     .map(|_| random::<f32>())
                     .collect::<Vec<f32>>()
             })
@@ -129,7 +150,7 @@ mod test {
 
         let random_prob = (0..4)
             .map(|_| {
-                (0..tags.tags.len() + 100) // wrong size!
+                (0..tags.0.len() + 100) // wrong size!
                     .map(|_| random::<f32>())
                     .collect::<Vec<f32>>()
             })
