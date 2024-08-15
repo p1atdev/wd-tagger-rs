@@ -160,11 +160,16 @@ mod test {
             .axis_iter(Axis(0))
             .map(|row| row.iter().copied().collect::<Vec<_>>())
             .collect::<Vec<_>>();
+        let preds = preds.first().unwrap();
 
         dbg!("Total", &preds.len());
 
-        for pred in preds.iter() {
-            dbg!("Len:", &pred.len());
-        }
+        // max value
+        let max = preds.iter().fold(0.0f32, |acc, &x| acc.max(x));
+        dbg!("Max:", &max);
+
+        // first 5 value pairs
+        let pairs = preds.iter().take(5).collect::<Vec<_>>();
+        dbg!("Pairs:", &pairs); // [general, sensitive, questionable, explicit, 1girl]
     }
 }
