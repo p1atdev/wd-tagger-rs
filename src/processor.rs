@@ -29,6 +29,7 @@ pub trait ImageProcessor {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ImagePreprocessor {
     channels: u32,
     height: u32,
@@ -113,9 +114,9 @@ impl ImageProcessor for ImagePreprocessor {
         // float32[batch_size,448,448,3]
         for (x, y, pixel) in resized_rgb.enumerate_pixels() {
             let [r, g, b] = pixel.0;
-            image_tensor[[y as usize, x as usize, 0]] = ((b as f32) / 127.5) - 1.0;
-            image_tensor[[y as usize, x as usize, 1]] = ((g as f32) / 127.5) - 1.0;
-            image_tensor[[y as usize, x as usize, 2]] = ((r as f32) / 127.5) - 1.0;
+            image_tensor[[y as usize, x as usize, 0]] = b as f32;
+            image_tensor[[y as usize, x as usize, 1]] = g as f32;
+            image_tensor[[y as usize, x as usize, 2]] = r as f32;
         }
 
         // Add batch dimension
