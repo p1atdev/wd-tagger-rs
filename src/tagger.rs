@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use ndarray::{Array, Ix4};
-use ort::{CUDAExecutionProvider, GraphOptimizationLevel, Session};
+use ort::{CPUExecutionProvider, CUDAExecutionProvider, GraphOptimizationLevel, Session};
 
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
@@ -26,9 +26,10 @@ pub struct TaggerModel {
 impl TaggerModel {
     /// Specify the devices to use
     pub fn use_devices(devices: Vec<Device>) -> Result<(), TaggerError> {
-        use ort::CPUExecutionProvider;
-
-        tracing_subscriber::fmt::init();
+        match tracing_subscriber::fmt::try_init() {
+            Ok(_) => {}
+            Err(e) => println!("Warning: Failed to initialize the logger: {}", e),
+        }
 
         let privders = devices
             .iter()
@@ -66,7 +67,7 @@ impl TaggerModel {
 
     /// Load the model in user-friendly way using the repo_id
     pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
-        let model_path = TaggerModelFile::new(repo_id.to_string())
+        let model_path = TaggerModelFile::new(repo_id)
             .get()
             .map_err(|e| TaggerError::Hf(e.to_string()))?;
 
@@ -91,7 +92,7 @@ mod test {
     use crate::file::{HfFile, TaggerModelFile};
     use crate::processor::{ImagePreprocessor, ImageProcessor};
     use image;
-    use ndarray::{s, Axis};
+    use ndarray::Axis;
     use ort::SessionOutputs;
 
     #[test]
@@ -114,7 +115,7 @@ mod test {
 
     #[test]
     fn test_load_tagger_model() {
-        let model_path = TaggerModelFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
+        let model_path = TaggerModelFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
 
@@ -128,7 +129,7 @@ mod test {
 
     #[test]
     fn test_run_tagger_model() {
-        let model_path = TaggerModelFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
+        let model_path = TaggerModelFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
 

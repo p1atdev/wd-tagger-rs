@@ -40,8 +40,8 @@ impl ImagePreprocessor {
         }
     }
 
-    pub fn from_config(config: ModelConfig) -> Result<Self, TaggerError> {
-        let input_size = config.pretrained_cfg.input_size;
+    pub fn from_config(config: &ModelConfig) -> Result<Self, TaggerError> {
+        let input_size = &config.pretrained_cfg.input_size;
         // check if the input size is valid
         if input_size.len() != 3 {
             return Err(TaggerError::Processor("Invalid input size".to_string()));
@@ -52,6 +52,11 @@ impl ImagePreprocessor {
             height: input_size[1],
             width: input_size[2],
         })
+    }
+
+    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
+        let config = ModelConfig::from_pretrained(repo_id)?;
+        Self::from_config(&config)
     }
 }
 

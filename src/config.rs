@@ -1,4 +1,9 @@
+use crate::{
+    error::TaggerError,
+    file::{ConfigFile, HfFile},
+};
 use serde::{Deserialize, Serialize};
+use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
@@ -31,4 +36,14 @@ pub struct PretrainedCfg {
     pub pool_size: Option<String>,
     pub first_conv: Option<String>,
     pub classifier: Option<String>,
+}
+
+impl ModelConfig {
+    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
+        let config_file = ConfigFile::new(&repo_id).get()?;
+        let json = fs::read_to_string(config_file).map_err(|e| TaggerError::Io(e.to_string()))?;
+        let config: ModelConfig =
+            serde_json::from_str(&json).map_err(|e| TaggerError::Io(e.to_string()))?;
+        Ok(config)
+    }
 }

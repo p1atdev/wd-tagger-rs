@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::Deserialize;
 
 use crate::error::TaggerError;
-
+use crate::file::{HfFile, TagCSVFile};
 /// Each record in the CSV file
 #[derive(Debug, Deserialize)]
 struct Tag {
@@ -50,6 +50,11 @@ impl LabelTags {
         Ok(Self { tags })
     }
 
+    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
+        let csv_path = TagCSVFile::new(repo_id).get()?;
+        Self::load(csv_path)
+    }
+
     /// Create pairs of tag and probability with given tensor
     pub fn create_probality_pairs(
         &self,
@@ -89,7 +94,7 @@ mod test {
 
     #[test]
     fn test_load_tags() {
-        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
+        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
         let tags = LabelTags::load(csv_path).unwrap();
@@ -99,7 +104,7 @@ mod test {
 
     #[test]
     fn test_create_probs_valid() {
-        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
+        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
         let tags = LabelTags::load(csv_path).unwrap();
@@ -117,7 +122,7 @@ mod test {
 
     #[test]
     fn test_create_probs_valid_invalid() {
-        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3".to_string())
+        let csv_path = TagCSVFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
         let tags = LabelTags::load(csv_path).unwrap();
