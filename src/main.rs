@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::fs::metadata;
-use wdtagger::{pipeline::TaggingPipeline, tags::Tag};
+use wdtagger::pipeline::TaggingPipeline;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]

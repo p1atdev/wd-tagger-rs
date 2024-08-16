@@ -1,6 +1,7 @@
 use anyhow::Result;
 use image::DynamicImage;
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
+use itertools::Itertools;
 
 use crate::processor::{ImagePreprocessor, ImageProcessor};
 use crate::tags::{LabelTags, TagCategory};
@@ -15,12 +16,14 @@ pub struct TaggingPipeline {
     threshold: f32,
 }
 
-pub type Prediction = BTreeMap<String, f32>;
+// type alias for prediction result
+pub type Prediction = IndexMap<String, f32>;
 
-fn sort_by_value(map: &BTreeMap<String, f32>) -> BTreeMap<String, f32> {
-    let mut pairs = map.iter().collect::<Vec<_>>();
-    pairs.sort_by(|a, b| b.1.total_cmp(a.1));
-    pairs.into_iter().map(|(k, v)| (k.clone(), *v)).collect()
+fn sort_by_value(map: &Prediction) -> Prediction {
+    map.into_iter()
+        .sorted_by(|a, &b| b.1.partial_cmp(a.1).unwrap())
+        .map(|(tag, prob)| (tag.clone(), *prob))
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -174,7 +177,7 @@ mod test {
             .rev()
             .take(10)
             .map(|(tag, prob)| (tag, *prob))
-            .collect::<BTreeMap<_, _>>();
+            .collect::<IndexMap<_, _>>();
         dbg!("Last 10:", &last10);
     }
 }

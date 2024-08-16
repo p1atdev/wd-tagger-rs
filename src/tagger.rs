@@ -59,7 +59,7 @@ impl TaggerModel {
         };
 
         let session = builder
-            .with_optimization_level(GraphOptimizationLevel::Level1)
+            .with_optimization_level(GraphOptimizationLevel::Level3)
             .map_err(|e| TaggerError::Ort(e.to_string()))?
             .commit_from_file(model_path)
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
