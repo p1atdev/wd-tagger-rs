@@ -1,7 +1,7 @@
-mod config;
-mod error;
-mod file;
-mod pipeline;
-mod processor;
-mod tagger;
-mod tags;
+pub mod config;
+pub mod error;
+pub mod file;
+pub mod pipeline;
+pub mod processor;
+pub mod tagger;
+pub mod tags;
