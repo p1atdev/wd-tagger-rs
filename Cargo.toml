@@ -17,10 +17,9 @@ path = "src/main.rs"
 required-features = ["cli"]
 
 [features]
-default = ["cli", "cuda"]
+default = ["cli"]
 cli = ["clap"]
 
-# load-dynamic = ["ort/load-dynamic"]
 cuda = ["ort/cuda"]
 tensorrt = ["ort/tensorrt"]
 coreml = ["ort/coreml"]

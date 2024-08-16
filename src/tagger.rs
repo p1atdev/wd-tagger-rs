@@ -2,7 +2,10 @@ use std::path::Path;
 
 use anyhow::Result;
 use ndarray::{Array, Axis, Ix4};
-use ort::{CPUExecutionProvider, CUDAExecutionProvider, GraphOptimizationLevel, Session};
+use ort::{CPUExecutionProvider, GraphOptimizationLevel, Session};
+
+#[cfg(feature = "cuda")]
+use ort::CUDAExecutionProvider;
 
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
@@ -37,7 +40,9 @@ impl TaggerModel {
             .iter()
             .map(|device| match device {
                 Device::Cpu => CPUExecutionProvider::default().build(),
+                #[cfg(feature = "cuda")]
                 Device::Cuda => CUDAExecutionProvider::default().build(),
+                #[cfg(feature = "cuda")]
                 Device::CudaDevice(device_id) => {
                     let provider = CUDAExecutionProvider::default();
                     provider.with_device_id(device_id.clone()).build()
@@ -109,12 +114,14 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "cuda")]
     fn test_use_cuda_auto() {
         let devices = vec![Device::Cuda];
         assert!(TaggerModel::use_devices(devices).is_ok());
     }
 
     #[test]
+    #[cfg(feature = "cuda")]
     fn test_use_cuda_device() {
         let devices = vec![Device::CudaDevice(0)];
         assert!(TaggerModel::use_devices(devices).is_ok());
