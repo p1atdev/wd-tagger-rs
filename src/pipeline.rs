@@ -12,6 +12,7 @@ pub struct TaggingPipeline {
     pub model: TaggerModel,
     pub preprocessor: ImagePreprocessor,
     pub tags: LabelTags,
+    threshold: f32,
 }
 
 pub type Prediction = BTreeMap<String, f32>;
@@ -54,6 +55,7 @@ impl TaggingPipeline {
             model,
             preprocessor,
             tags,
+            threshold: 0.35,
         })
     }
 
@@ -68,8 +70,9 @@ impl TaggingPipeline {
             ($category:expr) => {
                 pairs
                     .iter()
-                    .filter(|(tag, _prob)| {
+                    .filter(|(tag, &prob)| {
                         self.tags.label2tag().get(tag.clone()).unwrap().category() == $category
+                            && &prob >= &self.threshold
                     })
                     .map(|(tag, prob)| (tag.clone(), *prob))
                     .collect::<Prediction>()
@@ -98,9 +101,10 @@ impl TaggingPipeline {
                     ($category:expr) => {
                         pairs
                             .iter()
-                            .filter(|(tag, _prob)| {
+                            .filter(|(tag, &prob)| {
                                 self.tags.label2tag().get(tag.clone()).unwrap().category()
                                     == $category
+                                    && &prob >= &self.threshold
                             })
                             .map(|(tag, prob)| (tag.clone(), *prob))
                             .collect::<Prediction>()
