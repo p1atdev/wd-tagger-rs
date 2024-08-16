@@ -7,25 +7,22 @@ An inference tool of [WaifuDiffusion Tagger](https://huggingface.co/spaces/Smili
 
 ## Usage (Experimental)
 
-(Only tested on Ubuntu 24.04)
+### With CPU
 
-> [!WARNING]
-> `cargo install` is not working for some reason. please help.
+(Only tested on Ubuntu 24.04)
 
 You need Rust and Cargo to build.
 
 To build:
 
 ```bash
-git clone https://github.com/p1atdev/wd-tagger-rs
-cd wd-tagger-rs
-cargo build --release
+cargo install --git https://github.com/p1atdev/wd-tagger-rs
 ```
 
 To run:
 
 ```bash
-./target/release/tagger ./assets/sample1_3x1024x1024.webp
+tagger ./assets/sample1_3x1024x1024.webp
 ```
 
 Output:
@@ -50,3 +47,6 @@ Output:
 ...
 ```
 
+### With CUDA
+
+Not working now.
