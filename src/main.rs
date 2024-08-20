@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::fs::metadata;
-use wdtagger::pipeline::TaggingPipeline;
+use wdtagger::{pipeline::TaggingPipeline, tagger::Device};
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
@@ -14,6 +14,10 @@ struct Cli {
     /// Model version
     #[command(subcommand)]
     model: Option<ModelVersion>,
+
+    /// Inference configuration
+    #[command(flatten)]
+    config: InferenceConfig,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -152,20 +156,64 @@ struct InputOutput {
     mcut: bool,
 }
 
+#[derive(Debug, Clone, Args)]
+struct InferenceConfig {
+    /// Inference devices
+    #[arg(short, long)]
+    devices: Vec<InferDevice>,
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+enum InferDevice {
+    Cpu,
+    #[cfg(feature = "cuda")]
+    Cuda,
+    #[cfg(feature = "cuda")]
+    CudaDevice(usize),
+    #[cfg(feature = "coreml")]
+    #[value(name = "coreml")]
+    CoreML,
+}
+
+impl InferDevice {
+    fn to_device(&self) -> Device {
+        match self {
+            InferDevice::Cpu => Device::Cpu,
+            #[cfg(feature = "cuda")]
+            InferDevice::Cuda => Device::Cuda,
+            #[cfg(feature = "cuda")]
+            InferDevice::CudaDevice(id) => Device::CudaDevice(*id),
+            #[cfg(feature = "coreml")]
+            InferDevice::CoreML => Device::CoreML,
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    let devices: &Vec<InferDevice> = &cli.config.devices;
+
     // load pipeline
     let pipe = match &cli.model {
-        Some(ModelVersion::V2 { model }) => TaggingPipeline::from_pretrained(&model.repo_id())?,
-        Some(ModelVersion::V3 { model }) => TaggingPipeline::from_pretrained(&model.repo_id())?,
+        Some(ModelVersion::V2 { model }) => TaggingPipeline::from_pretrained(
+            &model.repo_id(),
+            devices.iter().map(|d| d.to_device()).collect(),
+        )?,
+        Some(ModelVersion::V3 { model }) => TaggingPipeline::from_pretrained(
+            &model.repo_id(),
+            devices.iter().map(|d| d.to_device()).collect(),
+        )?,
         Some(ModelVersion::Custom(custom)) => {
             println!("Custom model: {:?}", custom);
             unimplemented!("Custom model is not implemented yet");
         }
         None => {
             let model = V3Model::default(); // use v3 default model
-            TaggingPipeline::from_pretrained(&model.repo_id())?
+            TaggingPipeline::from_pretrained(
+                &model.repo_id(),
+                devices.iter().map(|d| d.to_device()).collect(),
+            )?
         }
     };
 

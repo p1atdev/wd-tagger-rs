@@ -7,10 +7,14 @@ use ort::{CPUExecutionProvider, GraphOptimizationLevel, Session};
 #[cfg(feature = "cuda")]
 use ort::CUDAExecutionProvider;
 
+#[cfg(feature = "coreml")]
+use ort::CoreMLExecutionProvider;
+
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
 
 /// Enum for selecting the CUDA device
+#[derive(Debug, Clone)]
 pub enum Device {
     Cpu,
     /// CUDA with default device
@@ -19,6 +23,9 @@ pub enum Device {
     /// CUDA with specific device
     #[cfg(feature = "cuda")]
     CudaDevice(i32),
+    /// CoreML
+    #[cfg(feature = "coreml")]
+    CoreML,
 }
 
 /// Model for the Tagger
@@ -47,6 +54,8 @@ impl TaggerModel {
                     let provider = CUDAExecutionProvider::default();
                     provider.with_device_id(device_id.clone()).build()
                 }
+                #[cfg(feature = "coreml")]
+                Device::CoreML => CoreMLExecutionProvider::default().build(),
             })
             .collect::<Vec<_>>();
 
@@ -64,8 +73,8 @@ impl TaggerModel {
         };
 
         let session = builder
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .map_err(|e| TaggerError::Ort(e.to_string()))?
+            // .with_optimization_level(GraphOptimizationLevel::Disable)
+            // .map_err(|e| TaggerError::Ort(e.to_string()))?
             .commit_from_file(model_path)
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
 
@@ -124,6 +133,13 @@ mod test {
     #[cfg(feature = "cuda")]
     fn test_use_cuda_device() {
         let devices = vec![Device::CudaDevice(0)];
+        assert!(TaggerModel::use_devices(devices).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "coreml")]
+    fn test_use_coreml() {
+        let devices = vec![Device::CoreML];
         assert!(TaggerModel::use_devices(devices).is_ok());
     }
 
