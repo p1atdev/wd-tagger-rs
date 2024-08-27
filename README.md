@@ -7,11 +7,13 @@ An inference tool of [WaifuDiffusion Tagger](https://huggingface.co/spaces/Smili
 
 ## Usage (Experimental)
 
+Get Rust toolchain:
+
+See https://www.rust-lang.org/tools/install
+
 ### With CPU
 
 (Only tested on Ubuntu 24.04)
-
-You need Rust and Cargo to build.
 
 To build:
 
@@ -49,6 +51,43 @@ Output:
 
 ### With CUDA
 
+Very experimental and unstable.
+
+#### Prerequisites
+
+cuDDN 9.x **MUST** be installed. You can get it from here:
+
+https://developer.nvidia.com/cudnn-downloads
+
+To build:
+
+```bash
+cargo build --features cuda --release
+```
+
+Temporary workaround for `libonnxruntime.so.1: cannot open shared object file: No such file or directory` (https://github.com/pykeio/ort/issues/269)
+
+```bash
+# find the path of libonnxruntime.so
+❯ ls -al ./target/release/libonnxruntime.so
+lrwxrwxrwx 1 root root 159  8月 28 03:05 ./target/release/libonnxruntime.so -> /home/USERNAME/.cache/ort.pyke.io/dfbin/x86_64-unknown-linux-gnu/***/onnxruntime/lib/libonnxruntime.
+
+# create a symbolic link
+❯ ln -s /home/USERNAME/.cache/ort.pyke.io/dfbin/x86_64-unknown-linux-gnu/***/onnxruntime/lib/libonnxruntime.so \
+    ./target/release/libonnxruntime.so.1
+```
+
+To run:
+
+```bash
+./target/release/tagger ./assets/sample1_3x1024x1024.webp \
+    --devices 0 \
+    --v3 vit-large # vit, swin-v2, convnext, vit-large, eva02-large
+```
+
+#### Docker
+
+This is just PoC.
 
 Using docker:
 
