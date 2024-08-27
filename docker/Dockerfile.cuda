@@ -40,7 +40,6 @@ COPY .cargo ./.cargo
 RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-gpu-1.19.0.tgz
 RUN tar -xvf onnxruntime-linux-x64-gpu-1.19.0.tgz
 RUN mv onnxruntime-linux-x64-gpu-1.19.0 onnxruntime
-ENV LD_LIBRARY_PATH=/workspace/onnxruntime/lib:$LD_LIBRARY_PATH
 ENV ORT_LIB_LOCATION=/workspace/onnxruntime/lib
 
 # build the project
