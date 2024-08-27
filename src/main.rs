@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::fs::metadata;
-use wdtagger::pipeline::TaggingPipeline;
+use wdtagger::{pipeline::TaggingPipeline, tagger::Device};
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
@@ -14,6 +14,11 @@ struct Cli {
     /// Model version
     #[command(subcommand)]
     model: Option<ModelVersion>,
+
+    /// Inference device
+    #[cfg(feature = "cuda")]
+    #[arg(default_value = "0")]
+    devices: Vec<i32>,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -155,17 +160,26 @@ struct InputOutput {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    let device = Device::cpu();
+
+    #[cfg(feature = "cuda")]
+    let device: Vec<Device> = cli.devices.iter().map(|d| Device::CudaDevice(*d)).collect();
+
     // load pipeline
     let pipe = match &cli.model {
-        Some(ModelVersion::V2 { model }) => TaggingPipeline::from_pretrained(&model.repo_id())?,
-        Some(ModelVersion::V3 { model }) => TaggingPipeline::from_pretrained(&model.repo_id())?,
+        Some(ModelVersion::V2 { model }) => {
+            TaggingPipeline::from_pretrained(&model.repo_id(), device)?
+        }
+        Some(ModelVersion::V3 { model }) => {
+            TaggingPipeline::from_pretrained(&model.repo_id(), device)?
+        }
         Some(ModelVersion::Custom(custom)) => {
             println!("Custom model: {:?}", custom);
             unimplemented!("Custom model is not implemented yet");
         }
         None => {
             let model = V3Model::default(); // use v3 default model
-            TaggingPipeline::from_pretrained(&model.repo_id())?
+            TaggingPipeline::from_pretrained(&model.repo_id(), device)?
         }
     };
 

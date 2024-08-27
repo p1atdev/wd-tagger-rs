@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 
 use crate::processor::{ImagePreprocessor, ImageProcessor};
+use crate::tagger::Device;
 use crate::tags::{LabelTags, TagCategory};
 use crate::{config::ModelConfig, error::TaggerError, tagger::TaggerModel};
 
@@ -48,7 +49,9 @@ impl TaggingResult {
 
 impl TaggingPipeline {
     /// Create a new tagging pipeline.
-    pub fn from_pretrained(model_name: &str) -> Result<Self, TaggerError> {
+    pub fn from_pretrained(model_name: &str, devices: Vec<Device>) -> Result<Self, TaggerError> {
+        TaggerModel::use_devices(devices)?;
+
         let model = TaggerModel::from_pretrained(&model_name)?;
         let config = ModelConfig::from_pretrained(&model_name)?;
         let preprocessor = ImagePreprocessor::from_config(&config)?;
@@ -131,13 +134,17 @@ mod test {
 
     #[test]
     fn test_pipe_from_pretrained() {
-        let pipeline = TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3").unwrap();
+        let pipeline =
+            TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::cpu())
+                .unwrap();
         dbg!(&pipeline);
     }
 
     #[test]
     fn test_tagging_pipeline() {
-        let pipeline = TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3").unwrap();
+        let pipeline =
+            TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::cpu())
+                .unwrap();
         let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
         let result = pipeline.predict(image).unwrap();
 

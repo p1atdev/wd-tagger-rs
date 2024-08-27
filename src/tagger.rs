@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use ndarray::{Array, Axis, Ix4};
-use ort::{CPUExecutionProvider, GraphOptimizationLevel, Session};
+use ort::{CPUExecutionProvider, Session};
 
 #[cfg(feature = "cuda")]
 use ort::CUDAExecutionProvider;
@@ -11,6 +11,7 @@ use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
 
 /// Enum for selecting the CUDA device
+#[derive(Debug, Clone)]
 pub enum Device {
     Cpu,
     /// CUDA with default device
@@ -19,6 +20,26 @@ pub enum Device {
     /// CUDA with specific device
     #[cfg(feature = "cuda")]
     CudaDevice(i32),
+}
+
+/// Ailas for the device
+impl Device {
+    /// Use CPU
+    pub fn cpu() -> Vec<Self> {
+        vec![Self::Cpu]
+    }
+
+    /// Use CUDA with default device
+    #[cfg(feature = "cuda")]
+    pub fn cuda() -> Vec<Self> {
+        vec![Self::Cuda]
+    }
+
+    /// Use CUDA with specific device
+    #[cfg(feature = "cuda")]
+    pub fn cuda_devices(device_ids: Vec<i32>) -> Vec<Self> {
+        device_ids.into_iter().map(Self::CudaDevice).collect()
+    }
 }
 
 /// Model for the Tagger
@@ -64,8 +85,6 @@ impl TaggerModel {
         };
 
         let session = builder
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .map_err(|e| TaggerError::Ort(e.to_string()))?
             .commit_from_file(model_path)
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
 
