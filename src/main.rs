@@ -17,7 +17,7 @@ struct Cli {
 
     /// Inference device
     #[cfg(feature = "cuda")]
-    #[arg(default_value = "0")]
+    #[arg(short, long, default_value = "0")]
     devices: Vec<i32>,
 }
 
@@ -26,13 +26,13 @@ enum ModelVersion {
     /// Use the tagger model of v2 series
     #[command(name = "--v2")]
     V2 {
-        #[arg(last = true, default_value_t = V2Model::default())]
+        #[arg(default_value_t = V2Model::default())]
         model: V2Model,
     },
     /// Use the tagger model of v3 series
     #[command(name = "--v3")]
     V3 {
-        #[arg(last = true, default_value_t = V3Model::default())]
+        #[arg(default_value_t = V3Model::default())]
         model: V3Model,
     },
     /// Use a custom model with the specified parameters
