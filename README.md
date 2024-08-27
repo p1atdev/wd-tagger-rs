@@ -49,4 +49,41 @@ Output:
 
 ### With CUDA
 
-Not working now.
+
+Using docker:
+
+```yml
+services:
+  cuda:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - type: bind
+        source: ./assets
+        target: /workspace/assets
+      - type: bind # to use huggingface cache
+        source: ~/.cache/huggingface
+        target: /root/.cache/huggingface
+
+    command: ["./tagger"] 
+```
+
+To run:
+
+```bash
+docker compose run cuda ./tagger ./assets/sample1_3x1024x1024.webp 
+```
+
+To down:
+```bash
+docker compose down --remove-orphans
+```
+

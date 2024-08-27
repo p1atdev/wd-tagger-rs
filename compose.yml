@@ -14,5 +14,8 @@ services:
       - type: bind
         source: ./assets
         target: /workspace/assets
+      - type: bind # to use huggingface cache
+        source: ~/.cache/huggingface
+        target: /root/.cache/huggingface
     command: ["./tagger"] # docker compose run cuda ./tagger ./assets/sample1_3x1024x1024.webp 
 
