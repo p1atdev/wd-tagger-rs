@@ -4,4 +4,4 @@
 rustflags = ["-C", "link-arg=-Wl,-rpath=$ORIGIN"]
 
 [target.'cfg(target_os = "macos")']
-rustflags = ["-C", "link-arg=-Wl,-rpath=@loader_path"]
+rustflags = ["-Clink-arg=-fapple-link-rtlib"]
