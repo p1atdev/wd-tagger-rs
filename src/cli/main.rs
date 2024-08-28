@@ -16,7 +16,7 @@ struct Cli {
     model: Option<ModelVersion>,
 
     /// Inference device
-    #[cfg(feature = "cuda")]
+    #[cfg(any(feature = "cuda", feature = "tensorrt"))]
     #[arg(short, long, default_value = "0")]
     devices: Vec<i32>,
 }
@@ -164,6 +164,13 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "cuda")]
     let device: Vec<Device> = cli.devices.iter().map(|d| Device::CudaDevice(*d)).collect();
+
+    #[cfg(feature = "tensorrt")]
+    let device: Vec<Device> = cli
+        .devices
+        .iter()
+        .map(|d| Device::TensorRTDevice(*d))
+        .collect();
 
     // load pipeline
     let pipe = match &cli.model {
