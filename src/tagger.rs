@@ -7,6 +7,9 @@ use ort::{CPUExecutionProvider, Session};
 #[cfg(feature = "cuda")]
 use ort::CUDAExecutionProvider;
 
+#[cfg(feature = "tensorrt")]
+use ort::TensorRTExecutionProvider;
+
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
 
@@ -20,6 +23,12 @@ pub enum Device {
     /// CUDA with specific device
     #[cfg(feature = "cuda")]
     CudaDevice(i32),
+    /// TensorRT
+    #[cfg(feature = "tensorrt")]
+    TensorRT,
+    /// TensorRT with specific device
+    #[cfg(feature = "tensorrt")]
+    TensorRTDevice(i32),
 }
 
 /// Ailas for the device
@@ -39,6 +48,18 @@ impl Device {
     #[cfg(feature = "cuda")]
     pub fn cuda_devices(device_ids: Vec<i32>) -> Vec<Self> {
         device_ids.into_iter().map(Self::CudaDevice).collect()
+    }
+
+    /// Use TensorRT
+    #[cfg(feature = "tensorrt")]
+    pub fn tensorrt() -> Vec<Self> {
+        vec![Self::TensorRT]
+    }
+
+    /// Use TensorRT with specific device
+    #[cfg(feature = "tensorrt")]
+    pub fn tensorrt_devices(device_ids: Vec<i32>) -> Vec<Self> {
+        device_ids.into_iter().map(Self::TensorRTDevice).collect()
     }
 }
 
@@ -66,6 +87,13 @@ impl TaggerModel {
                 #[cfg(feature = "cuda")]
                 Device::CudaDevice(device_id) => {
                     let provider = CUDAExecutionProvider::default();
+                    provider.with_device_id(device_id.clone()).build()
+                }
+                #[cfg(feature = "tensorrt")]
+                Device::TensorRT => TensorRTExecutionProvider::default().build(),
+                #[cfg(feature = "tensorrt")]
+                Device::TensorRTDevice(device_id) => {
+                    let provider = TensorRTExecutionProvider::default();
                     provider.with_device_id(device_id.clone()).build()
                 }
             })
@@ -143,6 +171,20 @@ mod test {
     #[cfg(feature = "cuda")]
     fn test_use_cuda_device() {
         let devices = vec![Device::CudaDevice(0)];
+        assert!(TaggerModel::use_devices(devices).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "tensorrt")]
+    fn test_use_tensorrt() {
+        let devices = vec![Device::TensorRT];
+        assert!(TaggerModel::use_devices(devices).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "tensorrt")]
+    fn test_use_tensorrt_device() {
+        let devices = vec![Device::TensorRTDevice(0)];
         assert!(TaggerModel::use_devices(devices).is_ok());
     }
 
