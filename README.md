@@ -51,36 +51,62 @@ Output:
 
 ### With CUDA
 
-Very experimental and unstable.
+Very experimental.
 
 #### Prerequisites
+
+##### cuDNN
 
 cuDDN 9.x **MUST** be installed. You can get it from here:
 
 https://developer.nvidia.com/cudnn-downloads
 
+##### onnxruntime 
+
+Downlaod prebuilt onnxruntime from ONNX Runtime's releases. (e.g. `onnxruntime-linux-x64-gpu-1.19.0.tgz`):
+
+https://github.com/microsoft/onnxruntime/releases/tag/v1.19.0 
+
+Then extract it and place files to `~/.local/share`, and set `LD_LIBRARY_PATH`.
+
+For example:
+
+```bash
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-gpu-1.19.0.tgz
+tar -xvf onnxruntime-linux-x64-gpu-1.19.0.tgz
+mkdir -p ~/.local/share/wdtagger/onnxruntime
+mv onnxruntime-linux-x64-gpu-1.19.0 ~/.local/share/wdtagger/onnxruntime/1.19.0
+rm onnxruntime-linux-x64-gpu-1.19.0.tgz
+```
+
+Add the following to your `.bashrc` or `.zshrc`:
+
+```bash
+# wdtagger
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/share/wdtagger/onnxruntime/1.19.0/lib
+```
+
+> [!NOTE]
+> Please check that you are specifying the `lib` directory, not the root directory of the extracted onnxruntime.
+
+To apply:
+
+```bash
+source ~/.bashrc
+```
+
+#### Build
+
 To build:
 
 ```bash
-cargo build --features cuda --release
-```
-
-Temporary workaround for `libonnxruntime.so.1: cannot open shared object file: No such file or directory` (https://github.com/pykeio/ort/issues/269)
-
-```bash
-# find the path of libonnxruntime.so
-❯ ls -al ./target/release/libonnxruntime.so
-lrwxrwxrwx 1 root root 159  8月 28 03:05 ./target/release/libonnxruntime.so -> /home/USERNAME/.cache/ort.pyke.io/dfbin/x86_64-unknown-linux-gnu/***/onnxruntime/lib/libonnxruntime.
-
-# create a symbolic link
-❯ ln -s /home/USERNAME/.cache/ort.pyke.io/dfbin/x86_64-unknown-linux-gnu/***/onnxruntime/lib/libonnxruntime.so \
-    ./target/release/libonnxruntime.so.1
+cargo install --path . --features cuda
 ```
 
 To run:
 
 ```bash
-./target/release/tagger ./assets/sample1_3x1024x1024.webp \
+tagger ./assets/sample1_3x1024x1024.webp \
     --devices 0 \
     --v3 vit-large # vit, swin-v2, convnext, vit-large, eva02-large
 ```
@@ -125,4 +151,31 @@ To down:
 ```bash
 docker compose down --remove-orphans
 ```
+
+### With TensorRT
+
+Very experimental.
+
+#### Prerequisites
+
+##### TensorRT
+
+You need at least `libnvinfer`. You can get it from here:
+
+https://developer.nvidia.com/tensorrt/download/10x
+
+#### Build
+
+```bash
+cargo install --path . --features tensorrt
+```
+
+```bash
+tagger ./assets/sample1_3x1024x1024.webp \
+    --devices 0 \
+    --v3 vit-large
+```
+
+> [!NOTE]
+> Currently TensorRT mode is not so fast as CUDA mode.
 
