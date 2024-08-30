@@ -41,12 +41,20 @@ mod test {
     use std::fs;
 
     #[test]
-    fn test_load_model_config() {
+    fn test_load_model_config_raw() {
         let config_file = ConfigFile::new("SmilingWolf/wd-swinv2-tagger-v3")
             .get()
             .unwrap();
         let json = fs::read_to_string(config_file).unwrap();
         let _config: ModelConfig = serde_json::from_str(&json).unwrap();
+    }
+
+    #[test]
+    fn test_load_model_config() {
+        let config_file = ConfigFile::new("SmilingWolf/wd-swinv2-tagger-v3")
+            .get()
+            .unwrap();
+        let _config: ModelConfig = ModelConfig::load(&config_file).unwrap();
     }
 
     #[test]

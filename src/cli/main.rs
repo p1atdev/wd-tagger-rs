@@ -49,25 +49,37 @@ async fn main() -> Result<()> {
         Some(ModelVersion::Custom(custom)) => custom.repo_id.clone(),
         None => V3Model::default().repo_id(),
     };
+    let model_file = match &cli.model {
+        Some(ModelVersion::Custom(custom)) => custom.model_file.clone(),
+        _ => "model.onnx".to_string(),
+    };
+    let config_file = match &cli.model {
+        Some(ModelVersion::Custom(custom)) => custom.config_file.clone(),
+        _ => "config.json".to_string(),
+    };
+    let tag_csv_file = match &cli.model {
+        Some(ModelVersion::Custom(custom)) => custom.tags_file.clone(),
+        _ => "selected_tags.csv".to_string(),
+    };
 
     // define files
-    let model_file = TaggerModelFile::new(&repo_id);
-    let config_file = ConfigFile::new(&repo_id);
-    let tag_csv_file = TagCSVFile::new(&repo_id);
+    let model_file = TaggerModelFile::custom(&repo_id, None, &model_file);
+    let config_file = ConfigFile::custom(&repo_id, None, &config_file);
+    let tag_csv_file = TagCSVFile::custom(&repo_id, None, &tag_csv_file);
 
     // pre-download files
-    model_file.get()?;
-    config_file.get()?;
-    tag_csv_file.get()?;
+    let model_file_path = model_file.get()?;
+    let config_file_path = config_file.get()?;
+    let tag_csv_file_path = tag_csv_file.get()?;
 
     // - maybe change the thread later
 
     // load model
     TaggerModel::use_devices(device)?; // do once
-    let model = TaggerModel::load(&model_file.get()?)?;
-    let config = ModelConfig::load(&config_file.get()?)?;
+    let model = TaggerModel::load(&model_file_path)?;
+    let config = ModelConfig::load(&config_file_path)?;
     let preprocessor = ImagePreprocessor::from_config(&config)?;
-    let label_tags = LabelTags::load(&tag_csv_file.get()?)?;
+    let label_tags = LabelTags::load(&tag_csv_file_path)?;
 
     // load pipe
     let threshold = &cli.io.threshold;

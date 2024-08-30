@@ -68,11 +68,11 @@ pub struct TaggerModelFile {
 
 impl TaggerModelFile {
     /// Initialize with the repo_id, revision, and model_path
-    pub fn custom(repo_id: String, revision: Option<String>, model_path: String) -> Self {
+    pub fn custom(repo_id: &str, revision: Option<String>, model_path: &str) -> Self {
         Self {
-            repo_id,
+            repo_id: repo_id.to_string(),
             revision,
-            model_path,
+            model_path: model_path.to_string(),
         }
     }
 }
@@ -107,11 +107,11 @@ pub struct TagCSVFile {
 }
 
 impl TagCSVFile {
-    pub fn custom(repo_id: String, revision: Option<String>, csv_path: String) -> Self {
+    pub fn custom(repo_id: &str, revision: Option<String>, csv_path: &str) -> Self {
         Self {
-            repo_id,
+            repo_id: repo_id.to_string(),
             revision,
-            csv_path,
+            csv_path: csv_path.to_string(),
         }
     }
 }
@@ -145,11 +145,11 @@ pub struct ConfigFile {
 }
 
 impl ConfigFile {
-    pub fn custom(repo_id: String, revision: Option<String>, config_path: String) -> Self {
+    pub fn custom(repo_id: &str, revision: Option<String>, config_path: &str) -> Self {
         Self {
-            repo_id,
+            repo_id: repo_id.to_string(),
             revision,
-            config_path,
+            config_path: config_path.to_string(),
         }
     }
 }
@@ -196,7 +196,7 @@ mod test {
 
         assert!(path.exists());
 
-        let model_file_custom = TaggerModelFile::custom(repo_id, Some(revision), model_path);
+        let model_file_custom = TaggerModelFile::custom(&repo_id, Some(revision), &model_path);
 
         assert!(model_file_custom.get().is_ok());
     }
@@ -217,7 +217,7 @@ mod test {
 
         assert!(path.exists());
 
-        let tag_csv_custom = TagCSVFile::custom(repo_id, Some(revision), csv_path);
+        let tag_csv_custom = TagCSVFile::custom(&repo_id, Some(revision), &csv_path);
 
         assert!(tag_csv_custom.get().is_ok());
     }
@@ -238,7 +238,7 @@ mod test {
 
         assert!(path.exists());
 
-        let config_file_custom = ConfigFile::custom(repo_id, Some(revision), config_path);
+        let config_file_custom = ConfigFile::custom(&repo_id, Some(revision), &config_path);
 
         assert!(config_file_custom.get().is_ok());
     }
