@@ -3,7 +3,7 @@ use crate::{
     file::{ConfigFile, HfFile},
 };
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, path::Path};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
@@ -21,12 +21,16 @@ pub struct PretrainedCfg {
 }
 
 impl ModelConfig {
-    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
-        let config_file = ConfigFile::new(&repo_id).get()?;
-        let json = fs::read_to_string(config_file).map_err(|e| TaggerError::Io(e.to_string()))?;
+    pub fn load<P: AsRef<Path>>(config_path: P) -> Result<Self, TaggerError> {
+        let json = fs::read_to_string(config_path).map_err(|e| TaggerError::Io(e.to_string()))?;
         let config: ModelConfig =
             serde_json::from_str(&json).map_err(|e| TaggerError::Io(e.to_string()))?;
         Ok(config)
+    }
+
+    pub fn from_pretrained(repo_id: &str) -> Result<Self, TaggerError> {
+        let config_file = ConfigFile::new(&repo_id).get()?;
+        Self::load(config_file)
     }
 }
 

@@ -49,6 +49,21 @@ impl TaggingResult {
 
 impl TaggingPipeline {
     /// Create a new tagging pipeline.
+    pub fn new(
+        model: TaggerModel,
+        preprocessor: ImagePreprocessor,
+        tags: LabelTags,
+        threshold: &f32,
+    ) -> Self {
+        Self {
+            model,
+            preprocessor,
+            tags,
+            threshold: *threshold,
+        }
+    }
+
+    /// Create a new tagging pipeline.
     pub fn from_pretrained(model_name: &str, devices: Vec<Device>) -> Result<Self, TaggerError> {
         TaggerModel::use_devices(devices)?;
 
