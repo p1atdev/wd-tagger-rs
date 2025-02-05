@@ -16,16 +16,6 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum ModelVersion {
-    /// Use the tagger model of v2 series
-    #[command(name = "v2")]
-    V2 {
-        /// Input and output options
-        #[command(flatten)]
-        io: InputOutput,
-
-        #[arg(long, default_value_t = V2Model::default())]
-        model: V2Model,
-    },
     /// Use the tagger model of v3 series
     #[command(name = "v3")]
     V3 {
@@ -102,43 +92,6 @@ impl ToString for V3Model {
             V3Model::Convnext => "convnext".to_string(),
             V3Model::VitLarge => "vit-large".to_string(),
             V3Model::Eva02Large => "eva02-large".to_string(),
-        }
-    }
-}
-
-#[derive(ValueEnum, Debug, Clone)]
-pub enum V2Model {
-    Vit,
-    Moat,
-    SwinV2,
-    Convnext,
-    ConvnextV2,
-}
-
-impl ModelPreset for V2Model {
-    fn repo_id(&self) -> String {
-        match self {
-            V2Model::Vit => "SmilingWolf/wd-v1-4-vit-tagger-v2".to_string(),
-            V2Model::Moat => "SmilingWolf/wd-v1-4-moat-tagger-v2".to_string(),
-            V2Model::SwinV2 => "SmilingWolf/wd-v1-4-swinv2-tagger-v2".to_string(),
-            V2Model::Convnext => "SmilingWolf/wd-v1-4-convnext-tagger-v2".to_string(),
-            V2Model::ConvnextV2 => "SmilingWolf/wd-v1-4-convnextv2-tagger-v2".to_string(),
-        }
-    }
-
-    fn default() -> Self {
-        V2Model::SwinV2
-    }
-}
-
-impl ToString for V2Model {
-    fn to_string(&self) -> String {
-        match self {
-            V2Model::Vit => "vit".to_string(),
-            V2Model::Moat => "moat".to_string(),
-            V2Model::SwinV2 => "swin-v2".to_string(),
-            V2Model::Convnext => "convnext".to_string(),
-            V2Model::ConvnextV2 => "convnext-v2".to_string(),
         }
     }
 }

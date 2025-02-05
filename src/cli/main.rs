@@ -48,7 +48,6 @@ async fn main() -> Result<()> {
         .collect();
 
     let repo_id = match &cli.model {
-        ModelVersion::V2 { model, .. } => model.repo_id(),
         ModelVersion::V3 { model, .. } => model.repo_id(),
         ModelVersion::Custom(custom) => custom.repo_id.clone(),
         // None => V3Model::default().repo_id(),
@@ -66,7 +65,6 @@ async fn main() -> Result<()> {
         _ => "selected_tags.csv".to_string(),
     };
     let io = match &cli.model {
-        ModelVersion::V2 { io, .. } => io,
         ModelVersion::V3 { io, .. } => io,
         ModelVersion::Custom(custom) => &custom.io,
     };
