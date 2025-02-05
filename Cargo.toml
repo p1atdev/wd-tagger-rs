@@ -48,6 +48,3 @@ rand = "0.9.0"
 
 [profile.release]
 lto = true
-
-[workspace]
-members = ["examples/wasm"]
