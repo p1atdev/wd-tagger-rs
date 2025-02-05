@@ -4,13 +4,9 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(version, about, long_about = None)]
 #[command(propagate_version = false)]
 pub struct Cli {
-    /// Input and output options
-    #[command(flatten)]
-    pub io: InputOutput,
-
     /// Model version
     #[command(subcommand)]
-    pub model: Option<ModelVersion>,
+    pub model: ModelVersion,
 
     /// Inference device
     #[cfg(any(feature = "cuda", feature = "tensorrt"))]
@@ -21,38 +17,50 @@ pub struct Cli {
 #[derive(Debug, Clone, Subcommand)]
 pub enum ModelVersion {
     /// Use the tagger model of v2 series
-    #[command(name = "--v2")]
+    #[command(name = "v2")]
     V2 {
-        #[arg(default_value_t = V2Model::default())]
+        /// Input and output options
+        #[command(flatten)]
+        io: InputOutput,
+
+        #[arg(long, default_value_t = V2Model::default())]
         model: V2Model,
     },
     /// Use the tagger model of v3 series
-    #[command(name = "--v3")]
+    #[command(name = "v3")]
     V3 {
-        #[arg(default_value_t = V3Model::default())]
+        /// Input and output options
+        #[command(flatten)]
+        io: InputOutput,
+
+        #[arg(long, default_value_t = V3Model::default())]
         model: V3Model,
     },
     /// Use a custom model with the specified parameters
-    #[command(name = "--custom")]
+    #[command(name = "custom")]
     Custom(CustomModel),
 }
 
 #[derive(Args, Clone, Debug)]
 pub struct CustomModel {
+    /// Input and output options
+    #[command(flatten)]
+    pub io: InputOutput,
+
     /// Repository id on Hugging Face
     #[arg(short, long)]
     pub repo_id: String,
 
     /// Model filename
-    #[arg(short, long, default_value = "model.onnx")]
+    #[arg(long, default_value = "model.onnx")]
     pub model_file: String,
 
     /// Config filename
-    #[arg(short, long, default_value = "config.json")]
+    #[arg(long, default_value = "config.json")]
     pub config_file: String,
 
     /// Tag list filename
-    #[arg(short, long, default_value = "selected_tags.csv")]
+    #[arg(long, default_value = "selected_tags.csv")]
     pub tags_file: String,
 }
 
@@ -135,6 +143,12 @@ impl ToString for V2Model {
     }
 }
 
+#[derive(Subcommand, Debug, Clone)]
+pub enum OutputFormat {
+    Print,
+    Json { path: String }, // Output path
+}
+
 #[derive(Args, Debug, Clone)]
 #[group(required = false, multiple = false)]
 pub struct InputOutput {
@@ -152,4 +166,8 @@ pub struct InputOutput {
     /// Use MCut Thresholding
     #[arg(long)]
     pub mcut: bool,
+
+    /// Output format
+    #[command(subcommand)]
+    pub format: Option<OutputFormat>,
 }

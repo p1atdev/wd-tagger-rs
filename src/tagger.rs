@@ -1,14 +1,20 @@
+use std::ops::Deref;
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Result;
 use ndarray::{Array, Axis, Ix4};
-use ort::{CPUExecutionProvider, Session};
+use ort::execution_providers::CPUExecutionProvider;
+use ort::session::Session;
 
 #[cfg(feature = "cuda")]
-use ort::CUDAExecutionProvider;
+use ort::execution_providers::CUDAExecutionProvider;
 
 #[cfg(feature = "tensorrt")]
-use ort::TensorRTExecutionProvider;
+use ort::execution_providers::TensorRTExecutionProvider;
+
+#[cfg(feature = "coreml")]
+use ort::execution_providers::CoreMLExecutionProvider;
 
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
@@ -29,6 +35,9 @@ pub enum Device {
     /// TensorRT with specific device
     #[cfg(feature = "tensorrt")]
     TensorRTDevice(i32),
+
+    #[cfg(feature = "coreml")]
+    CoreML,
 }
 
 /// Ailas for the device
@@ -61,13 +70,18 @@ impl Device {
     pub fn tensorrt_devices(device_ids: Vec<i32>) -> Vec<Self> {
         device_ids.into_iter().map(Self::TensorRTDevice).collect()
     }
+
+    #[cfg(feature = "coreml")]
+    pub fn coreml() -> Vec<Self> {
+        vec![Self::CoreML]
+    }
 }
 
 /// Model for the Tagger
 #[derive(Debug)]
 
 pub struct TaggerModel {
-    session: Session,
+    session: Arc<Session>,
 }
 
 impl TaggerModel {
@@ -96,6 +110,8 @@ impl TaggerModel {
                     let provider = TensorRTExecutionProvider::default();
                     provider.with_device_id(device_id.clone()).build()
                 }
+                #[cfg(feature = "coreml")]
+                Device::CoreML => CoreMLExecutionProvider::default().build(),
             })
             .collect::<Vec<_>>();
 
@@ -116,7 +132,9 @@ impl TaggerModel {
             .commit_from_file(model_path)
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
 
-        Ok(Self { session })
+        Ok(Self {
+            session: Arc::new(session),
+        })
     }
 
     /// Load the model in user-friendly way using the repo_id
@@ -127,6 +145,18 @@ impl TaggerModel {
 
         Self::load(model_path)
     }
+
+    // /// Load the model from already loaded in memory
+    // pub fn from_memory(bytes: &[u8]) -> Result<Self, TaggerError> {
+    //     let session = Session::builder()
+    //         .map_err(|e| TaggerError::Ort(e.to_string()))?
+    //         .commit_from_memory_directly(bytes)
+    //         .map_err(|e| TaggerError::Ort(e.to_string()))?;
+
+    //     Ok(Self {
+    //         session: session.inner(),
+    //     })
+    // }
 
     pub fn predict(&self, input_tensor: Array<f32, Ix4>) -> Result<Vec<Vec<f32>>, TaggerError> {
         let inputs = ort::inputs![input_tensor].map_err(|e| TaggerError::Ort(e.to_string()))?;
@@ -152,7 +182,7 @@ mod test {
     use crate::processor::{ImagePreprocessor, ImageProcessor};
     use image;
     use ndarray::Axis;
-    use ort::SessionOutputs;
+    use ort::session::SessionOutputs;
 
     #[test]
     fn test_use_cpu() {
@@ -185,6 +215,13 @@ mod test {
     #[cfg(feature = "tensorrt")]
     fn test_use_tensorrt_device() {
         let devices = vec![Device::TensorRTDevice(0)];
+        assert!(TaggerModel::use_devices(devices).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "coreml")]
+    fn test_use_coreml() {
+        let devices = vec![Device::CoreML];
         assert!(TaggerModel::use_devices(devices).is_ok());
     }
 

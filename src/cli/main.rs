@@ -2,7 +2,7 @@ mod args;
 mod file;
 
 use anyhow::Result;
-use args::{Cli, ModelPreset, ModelVersion, V3Model};
+use args::{Cli, InputOutput, ModelPreset, ModelVersion, V3Model};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use wdtagger::{
     config::ModelConfig,
@@ -19,6 +19,8 @@ fn target_device_type() -> String {
         "TensorRT".to_string()
     } else if cfg!(feature = "cuda") {
         "CUDA".to_string()
+    } else if cfg!(feature = "coreml") {
+        "CoreML".to_string()
     } else {
         "CPU".to_string()
     }
@@ -44,22 +46,27 @@ async fn main() -> Result<()> {
         .collect();
 
     let repo_id = match &cli.model {
-        Some(ModelVersion::V2 { model }) => model.repo_id(),
-        Some(ModelVersion::V3 { model }) => model.repo_id(),
-        Some(ModelVersion::Custom(custom)) => custom.repo_id.clone(),
-        None => V3Model::default().repo_id(),
+        ModelVersion::V2 { model, .. } => model.repo_id(),
+        ModelVersion::V3 { model, .. } => model.repo_id(),
+        ModelVersion::Custom(custom) => custom.repo_id.clone(),
+        // None => V3Model::default().repo_id(),
     };
     let model_file = match &cli.model {
-        Some(ModelVersion::Custom(custom)) => custom.model_file.clone(),
+        ModelVersion::Custom(custom) => custom.model_file.clone(),
         _ => "model.onnx".to_string(),
     };
     let config_file = match &cli.model {
-        Some(ModelVersion::Custom(custom)) => custom.config_file.clone(),
+        ModelVersion::Custom(custom) => custom.config_file.clone(),
         _ => "config.json".to_string(),
     };
     let tag_csv_file = match &cli.model {
-        Some(ModelVersion::Custom(custom)) => custom.tags_file.clone(),
+        ModelVersion::Custom(custom) => custom.tags_file.clone(),
         _ => "selected_tags.csv".to_string(),
+    };
+    let io = match &cli.model {
+        ModelVersion::V2 { io, .. } => io,
+        ModelVersion::V3 { io, .. } => io,
+        ModelVersion::Custom(custom) => &custom.io,
     };
 
     // define files
@@ -82,13 +89,13 @@ async fn main() -> Result<()> {
     let label_tags = LabelTags::load(&tag_csv_file_path)?;
 
     // load pipe
-    let threshold = &cli.io.threshold;
+    let threshold = &io.threshold;
     let pipe = TaggingPipeline::new(model, preprocessor, label_tags, threshold);
 
     // I/O
-    let input = &cli.io.input;
-    let output = &cli.io.output;
-    let mcut = &cli.io.mcut;
+    let input = &io.input;
+    let output = &io.output;
+    let mcut = &io.mcut;
 
     // if input is single file
     match file::is_file(&input).await? {
