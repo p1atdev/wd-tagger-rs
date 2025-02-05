@@ -5,15 +5,15 @@ An inference tool of [WaifuDiffusion Tagger](https://huggingface.co/spaces/Smili
 > [!IMPORTANT]
 > WIP. 
 
-## Usage (Experimental)
+## Usage
 
-Get Rust toolchain:
+You need Rust toolchain:
 
 See https://www.rust-lang.org/tools/install
 
 ### With CPU (recommended)
 
-To build:
+To install:
 
 ```bash
 cargo install --git https://github.com/p1atdev/wd-tagger-rs
@@ -45,6 +45,24 @@ Output:
         "pink_eyes": 0.8463925,
         "looking_at_viewer": 0.83266306,
 ...
+```
+
+
+### With CoreML
+
+#### Build
+
+Install with `--features coreml` flag:
+
+```bash
+cargo install --git https://github.com/p1atdev/wd-tagger-rs \
+  --features coreml
+```
+
+Then you can run as the same as the CPU version:
+
+```bash
+tagger v3 ./assets/sample1_3x1024x1024.webp
 ```
 
 
@@ -126,37 +144,63 @@ tagger v3 ./assets/sample1_3x1024x1024.webp \
   --format json
 ```
 
-The json file includes all of the prediction results. 
+The json file includes all of the prediction results. For example: 
+
+```json
+{
+  "rating": {
+    "sensitive": 0.086992234,
+    "general": 0.9125686,
+    "questionable": 0.0006592274,
+    "explicit": 0.0001244545
+  },
+  "character": {
+    "celestia_ludenberg": 7.4505806e-7,
+    "usami_sumireko": 0.0000015199184,
+    "japanese_crested_ibis_(kemono_friends)": 5.364418e-7,
+    ... remains about 2400 lines
+  },
+  "general": {
+    "breathing_fire": 0.0000025331974,
+    "horse_tail": 0.0000015795231,
+    "grey_hoodie": 0.0000023841858,
+    "green_ribbon": 0.0002577901,
+    "stand_(jojo)": 5.066395e-7,
+    "yellow_pupils": 0.000052034855,
+    "cat_ear_panties": 2.9802322e-8,
+    ... remains about 8000 lines
+  }
+}
+```
 
 
 ### as Caption
 
-If you specify `--output` option, tagger will save the result as JSON in default.
+You can specify the output format by `--format caption`:
 
 ```bash
 tagger v3 ./assets/sample1_3x1024x1024.webp \
-  --output ./output.json
-```
-
-Or you can specify the output format explicitly:
-
-```bash
-tagger v3 ./assets/sample1_3x1024x1024.webp \
-  --output ./output.json \
-  --format json
+  --output ./output.txt \
+  --format caption
 ```
 
 If you don't specify the `--output` option, tagger will save to the same directory of the input file.
 
 ```bash
 tagger v3 ./assets/sample1_3x1024x1024.webp \
-  --format json
+  --format caption
 ```
-Tagger saves to `./assets/sample1_3x1024x1024.json`.
+
+Tagger saves to `./assets/sample1_3x1024x1024.txt`.
+
+The caption file includes the only above the threshold (default to 0.35) tags. For example:
+
+```
+1girl, solo, double_bun, hair_bun, twintails, pink_hair, fang, smile, pink_eyes, looking_at_viewer, upper_body, long_hair, pink_theme, open_mouth, shirt, simple_background, skin_fang, pink_background, blush, :d, neck_ribbon, collared_shirt, ribbon, jacket, sidelocks, pink_shirt, cardigan, general
+```
 
 
-
-## Experimental execution devices
+## Other experimental execution devices
 
 ### With CUDA 
 
@@ -283,17 +327,3 @@ tagger v3 ./assets/sample1_3x1024x1024.webp \
 
 > [!NOTE]
 > Currently TensorRT mode is not so fast as CUDA mode.
-
-### With CoreML
-
-#### Build
-
-```bash
-cargo install --path . --features coreml
-```
-
-```bash
-tagger v3 ./assets/sample1_3x1024x1024.webp \
-    --model eva02-large
-```
-
