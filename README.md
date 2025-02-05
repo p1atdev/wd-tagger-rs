@@ -158,7 +158,7 @@ The json file includes all of the prediction results. For example:
     "celestia_ludenberg": 7.4505806e-7,
     "usami_sumireko": 0.0000015199184,
     "japanese_crested_ibis_(kemono_friends)": 5.364418e-7,
-    ... remains about 2400 lines
+    // ... about 2400 lines left
   },
   "general": {
     "breathing_fire": 0.0000025331974,
@@ -168,7 +168,7 @@ The json file includes all of the prediction results. For example:
     "stand_(jojo)": 5.066395e-7,
     "yellow_pupils": 0.000052034855,
     "cat_ear_panties": 2.9802322e-8,
-    ... remains about 8000 lines
+    // ... about 8000 lines left
   }
 }
 ```
