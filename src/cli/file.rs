@@ -1,16 +1,19 @@
 use anyhow::Result;
 use futures::stream::{self, StreamExt};
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use tokio::fs;
-use tokio::fs::{File, ReadDir};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use wdtagger::pipeline::TaggingResult;
 
 /// Supported image extensions.
 pub const IMAGE_EXTENSIONS: [&str; 4] = ["jpg", "jpeg", "png", "webp"];
 
 /// Check if the path is a file or directory.
-pub async fn is_file(path: &str) -> Result<bool> {
-    let metadata = fs::metadata(path).await?;
+pub async fn is_file<P: AsRef<Path>>(path: P) -> Result<bool> {
+    let metadata = fs::metadata(&path).await?;
     Ok(metadata.is_file())
 }
 
@@ -58,7 +61,7 @@ pub async fn get_image_files(dir: &str) -> Result<Vec<PathBuf>> {
 }
 
 /// Write a text to a file.
-pub async fn write_text_to_file(text: &str, path: &str) -> Result<()> {
+pub async fn write_text_to_file(text: &str, path: &PathBuf) -> Result<()> {
     let mut file = File::create(path).await?;
     file.write_all(text.as_bytes()).await?;
     Ok(())
@@ -68,4 +71,62 @@ pub async fn write_text_to_file(text: &str, path: &str) -> Result<()> {
 pub async fn create_dir(path: &str) -> Result<()> {
     fs::create_dir(path).await?;
     Ok(())
+}
+
+pub fn get_path_with_extension<P: AsRef<Path>>(path: P, ext: &str) -> PathBuf {
+    let mut new_path = path.as_ref().to_path_buf();
+    new_path.set_extension(ext);
+    new_path
+}
+
+#[derive(Serialize, Deserialize)]
+struct TaggingResultForSave {
+    rating: HashMap<String, f32>,
+    character: HashMap<String, f32>,
+    general: HashMap<String, f32>,
+}
+
+impl From<TaggingResult> for TaggingResultForSave {
+    fn from(result: TaggingResult) -> Self {
+        Self {
+            rating: result.rating.into_iter().collect::<HashMap<_, _>>(),
+            character: result.character.into_iter().collect::<HashMap<_, _>>(),
+            general: result.general.into_iter().collect::<HashMap<_, _>>(),
+        }
+    }
+}
+
+pub async fn write_as_json(path: &PathBuf, result: &TaggingResult) -> Result<()> {
+    let result = TaggingResultForSave::from(result.clone());
+    let json = serde_json::to_string_pretty(&result)?;
+    write_text_to_file(&json, path).await
+}
+
+pub async fn write_as_caption(path: &PathBuf, result: &TaggingResult) -> Result<()> {
+    let rating_tag = result
+        .rating
+        .first()
+        .map(|(k, _)| k.clone())
+        .unwrap_or("".to_string());
+    let character_tags = result
+        .character
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    let general_tags = result
+        .general
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let caption = vec![character_tags, general_tags, rating_tag]
+        .iter()
+        .filter(|s| !s.is_empty())
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    write_text_to_file(&caption, path).await
 }

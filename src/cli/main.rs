@@ -1,9 +1,11 @@
 mod args;
 mod file;
 
+use std::{path::PathBuf, str::FromStr};
+
 use anyhow::Result;
-use args::{Cli, InputOutput, ModelPreset, ModelVersion, V3Model};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use args::{Cli, ModelPreset, ModelVersion, OutputFormat};
+use clap::Parser;
 use wdtagger::{
     config::ModelConfig,
     file::{ConfigFile, HfFile, TagCSVFile, TaggerModelFile},
@@ -79,8 +81,6 @@ async fn main() -> Result<()> {
     let config_file_path = config_file.get()?;
     let tag_csv_file_path = tag_csv_file.get()?;
 
-    // - maybe change the thread later
-
     // load model
     TaggerModel::use_devices(device)?; // do once
     let model = TaggerModel::load(&model_file_path)?;
@@ -88,28 +88,58 @@ async fn main() -> Result<()> {
     let preprocessor = ImagePreprocessor::from_config(&config)?;
     let label_tags = LabelTags::load(&tag_csv_file_path)?;
 
-    // load pipe
-    let threshold = &io.threshold;
-    let pipe = TaggingPipeline::new(model, preprocessor, label_tags, threshold);
-
     // I/O
-    let input = &io.input;
+    let input = PathBuf::from_str(&io.input)?;
     let output = &io.output;
-    let mcut = &io.mcut;
+    let format = if output.is_some() && io.format.is_none() {
+        &Some(OutputFormat::Json)
+    } else {
+        &io.format
+    };
+
+    // load pipe
+    let threshold = match format {
+        Some(OutputFormat::Json) | Some(OutputFormat::Jsonl) => 0f32, // save all predictions
+        Some(OutputFormat::Caption) | None => io.threshold, // keep predictions above threshold
+    };
+    let pipe = TaggingPipeline::new(model, preprocessor, label_tags, &threshold);
 
     // if input is single file
     match file::is_file(&input).await? {
         true => {
             let img = image::open(&input)?;
             let result = pipe.predict(img)?;
-            dbg!(result);
+            dbg!(&result);
+
+            match format {
+                Some(OutputFormat::Json) => {
+                    let save_path = if let Some(output) = output {
+                        PathBuf::from_str(output)?
+                    } else {
+                        file::get_path_with_extension(input, "json")
+                    };
+                    println!("Saving result to: {save_path:?}");
+
+                    file::write_as_json(&save_path, &result).await?;
+                }
+                Some(OutputFormat::Jsonl) => unimplemented!("Jsonl output is not implemented yet"),
+                Some(OutputFormat::Caption) => {
+                    let save_path = if let Some(output) = output {
+                        PathBuf::from_str(output)?
+                    } else {
+                        file::get_path_with_extension(input, "txt")
+                    };
+                    println!("Saving result to: {save_path:?}");
+
+                    file::write_as_caption(&save_path, &result).await?;
+                }
+                None => {} // do nothing
+            };
         }
         false => {
             unimplemented!("Folder input is not implemented yet");
         }
     }
-
-    dbg!(&cli);
 
     Ok(())
 }

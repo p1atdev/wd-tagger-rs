@@ -143,16 +143,17 @@ impl ToString for V2Model {
     }
 }
 
-#[derive(Subcommand, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone)]
 pub enum OutputFormat {
-    Print,
-    Json { path: String }, // Output path
+    Json,
+    Jsonl,
+    Caption,
 }
 
 #[derive(Args, Debug, Clone)]
-#[group(required = false, multiple = false)]
+#[group(required = false)]
 pub struct InputOutput {
-    /// Input path to a file or a folder
+    /// Input path to a file or a folder#
     pub input: String,
 
     /// Output path to a file or a folder
@@ -163,11 +164,7 @@ pub struct InputOutput {
     #[arg(short, long, default_value = "0.35")]
     pub threshold: f32,
 
-    /// Use MCut Thresholding
-    #[arg(long)]
-    pub mcut: bool,
-
     /// Output format
-    #[command(subcommand)]
+    #[arg(short, long)]
     pub format: Option<OutputFormat>,
 }
