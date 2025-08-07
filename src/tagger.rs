@@ -15,6 +15,7 @@ use ort::execution_providers::TensorRTExecutionProvider;
 
 #[cfg(feature = "coreml")]
 use ort::execution_providers::CoreMLExecutionProvider;
+use ort::value::Tensor;
 
 use crate::error::TaggerError;
 use crate::file::{HfFile, TaggerModelFile};
@@ -81,7 +82,7 @@ impl Device {
 #[derive(Debug)]
 
 pub struct TaggerModel {
-    session: Arc<Session>,
+    session: Box<Session>,
 }
 
 impl TaggerModel {
@@ -92,7 +93,7 @@ impl TaggerModel {
             Err(e) => println!("Warning: Failed to initialize the logger: {}", e),
         }
 
-        let privders = devices
+        let providers = devices
             .iter()
             .map(|device| match device {
                 Device::Cpu => CPUExecutionProvider::default().build(),
@@ -115,7 +116,7 @@ impl TaggerModel {
             })
             .collect::<Vec<_>>();
 
-        match ort::init().with_execution_providers(privders).commit() {
+        match ort::init().with_execution_providers(providers).commit() {
             Ok(_) => Ok(()),
             Err(e) => Err(TaggerError::Cuda(e.to_string())),
         }
@@ -133,7 +134,7 @@ impl TaggerModel {
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
 
         Ok(Self {
-            session: Arc::new(session),
+            session: Box::new(session),
         })
     }
 
@@ -158,13 +159,12 @@ impl TaggerModel {
     //     })
     // }
 
-    pub fn predict(&self, input_tensor: Array<f32, Ix4>) -> Result<Vec<Vec<f32>>, TaggerError> {
-        let inputs = ort::inputs![input_tensor].map_err(|e| TaggerError::Ort(e.to_string()))?;
-        let output = self
+    pub fn predict(&mut self, input_tensor: Array<f32, Ix4>) -> Result<Vec<Vec<f32>>, TaggerError> {
+        let outputs = self
             .session
-            .run(inputs)
+            .run(ort::inputs!["input" => Tensor::<f32>::from_array(input_tensor).unwrap()])
             .map_err(|e| TaggerError::Ort(e.to_string()))?;
-        let preds = output["output"].try_extract_tensor::<f32>().unwrap();
+        let preds = outputs["output"].try_extract_array::<f32>().unwrap();
 
         let preds = preds
             .axis_iter(Axis(0))
@@ -245,20 +245,24 @@ mod test {
             .get()
             .unwrap();
 
-        let model = TaggerModel::load(model_path).unwrap();
+        let mut model = TaggerModel::load(model_path).unwrap();
 
         let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
         let processor = ImagePreprocessor::new(3, 448, 448);
         let tensor = processor.process(&image).unwrap();
-        let inputs = ort::inputs![tensor].unwrap();
 
-        let output: SessionOutputs = model.session.run(inputs).unwrap();
-        let preds = output["output"]
-            .try_extract_tensor::<f32>()
+        let outputs = model
+            .session
+            .run(ort::inputs![
+                "input" => Tensor::<f32>::from_array(tensor).unwrap(),
+            ])
+            .unwrap();
+        let preds = outputs["output"]
+            .try_extract_array::<f32>()
             .unwrap()
             .into_owned();
 
-        dbg!(&output);
+        dbg!(&outputs);
         println!("{}", &preds);
 
         let preds = preds

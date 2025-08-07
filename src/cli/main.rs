@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
         Some(OutputFormat::Json) | Some(OutputFormat::Jsonl) => 0f32, // save all predictions
         Some(OutputFormat::Caption) | None => io.threshold, // keep predictions above threshold
     };
-    let pipe = TaggingPipeline::new(model, preprocessor, label_tags, &threshold);
+    let mut pipe = TaggingPipeline::new(model, preprocessor, label_tags, &threshold);
 
     // if input is single file
     match file::is_file(&input).await? {

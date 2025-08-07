@@ -82,7 +82,7 @@ impl TaggingPipeline {
     }
 
     /// Predict the tags of an image.
-    pub fn predict(&self, image: DynamicImage) -> Result<TaggingResult, TaggerError> {
+    pub fn predict(&mut self, image: DynamicImage) -> Result<TaggingResult, TaggerError> {
         let tensor = self.preprocessor.process(&image)?;
         let probs = self.model.predict(tensor)?;
         let pairs = self.tags.create_probality_pairs(probs)?;
@@ -109,7 +109,7 @@ impl TaggingPipeline {
 
     /// Predict the tags of a batch of images.
     pub fn predict_batch(
-        &self,
+        &mut self,
         images: Vec<DynamicImage>,
     ) -> Result<Vec<TaggingResult>, TaggerError> {
         let tensor = self.preprocessor.process_batch(images)?;
@@ -158,8 +158,57 @@ mod test {
 
     #[test]
     fn test_tagging_pipeline() {
-        let pipeline =
+        let mut pipeline =
             TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::cpu())
+                .unwrap();
+        let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
+        let result = pipeline.predict(image).unwrap();
+
+        dbg!("Rating:", &result.rating);
+
+        // get top 10 descending pairs
+        let mut sorted = result.general.iter().collect::<Vec<_>>();
+        sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        let top10 = sorted
+            .iter()
+            .take(10)
+            .map(|(tag, prob)| (*tag, *prob))
+            .collect::<Vec<_>>();
+        dbg!("Top 10:", &top10);
+
+        let top10keys = top10.iter().map(|(key, _)| *key).collect::<Vec<_>>();
+        assert_eq!(
+            top10keys,
+            vec![
+                // https://huggingface.co/spaces/SmilingWolf/wd-tagger
+                "1girl",
+                "solo",
+                "double_bun",
+                "hair_bun",
+                "twintails",
+                "pink_hair",
+                "fang",
+                "smile",
+                "pink_eyes",
+                "looking_at_viewer",
+            ]
+        );
+
+        // get last 10 tags
+        let last10 = sorted
+            .iter()
+            .rev()
+            .take(10)
+            .map(|(tag, prob)| (tag, *prob))
+            .collect::<IndexMap<_, _>>();
+        dbg!("Last 10:", &last10);
+    }
+
+    #[test]
+    #[cfg(feature = "coreml")]
+    fn test_tagging_pipeline_coreml() {
+        let mut pipeline =
+            TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::coreml())
                 .unwrap();
         let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
         let result = pipeline.predict(image).unwrap();
