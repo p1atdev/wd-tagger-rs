@@ -129,8 +129,6 @@ See `tagger custom --help` for more details.
 
 ### as JSON
 
-If you specified `--output` option, tagger will save the result as JSON in default.
-
 ```bash
 tagger v3 ./assets/sample1_3x1024x1024.webp \
   --output ./output.json
@@ -196,7 +194,7 @@ Tagger saves to `./assets/sample1_3x1024x1024.txt`.
 The caption file includes the only above the threshold (default to 0.35) tags. For example:
 
 ```
-1girl, solo, double_bun, hair_bun, twintails, pink_hair, fang, smile, pink_eyes, looking_at_viewer, upper_body, long_hair, pink_theme, open_mouth, shirt, simple_background, skin_fang, pink_background, blush, :d, neck_ribbon, collared_shirt, ribbon, jacket, sidelocks, pink_shirt, cardigan, general
+1girl, solo, double bun, hair bun, twintails, pink hair, fang, smile, pink eyes, looking at viewer, upper body, long hair, pink theme, open mouth, shirt, simple background, skin fang, pink background, blush, :d, neck ribbon, collared shirt, ribbon, jacket, sidelocks, pink shirt
 ```
 
 
