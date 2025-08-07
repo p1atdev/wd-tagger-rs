@@ -2,7 +2,6 @@ use anyhow::Result;
 use image::DynamicImage;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use serde::Serialize;
 
 use crate::processor::{ImagePreprocessor, ImageProcessor};
 use crate::tagger::Device;

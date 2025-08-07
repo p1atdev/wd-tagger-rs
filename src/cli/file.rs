@@ -99,19 +99,19 @@ impl From<TaggingResult> for TaggingResultDetail {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct TaggingResultSimple {
+pub struct TaggingResultSimpleTags {
     pub rating: String,
     pub character: Vec<String>,
     pub general: Vec<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct CaptionResult {
+pub struct TaggingResultSimple {
     pub tags: String,
-    pub tagger: TaggingResultSimple,
+    pub tagger: TaggingResultSimpleTags,
 }
 
-impl From<TaggingResult> for TaggingResultSimple {
+impl From<TaggingResult> for TaggingResultSimpleTags {
     fn from(result: TaggingResult) -> Self {
         Self {
             rating: result
@@ -132,7 +132,7 @@ impl From<TaggingResult> for TaggingResultSimple {
     }
 }
 
-impl From<TaggingResult> for CaptionResult {
+impl From<TaggingResult> for TaggingResultSimple {
     fn from(result: TaggingResult) -> Self {
         let mut tags = result.character.keys().cloned().collect::<Vec<String>>();
         tags.extend(result.general.keys().cloned().collect::<Vec<String>>());
@@ -145,7 +145,7 @@ impl From<TaggingResult> for CaptionResult {
 
         Self {
             tags,
-            tagger: TaggingResultSimple::from(result),
+            tagger: TaggingResultSimpleTags::from(result),
         }
     }
 }

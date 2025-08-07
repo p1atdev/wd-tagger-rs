@@ -6,12 +6,14 @@ use std::{
     path::PathBuf,
     str::FromStr,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use anyhow::Result;
 use args::{Cli, ModelPreset, ModelVersion, OutputFormat};
 use clap::Parser;
 use futures::{StreamExt, TryStreamExt};
+use futures_batch::ChunksTimeoutStreamExt;
 use wdtagger::{
     config::ModelConfig,
     file::{ConfigFile, HfFile, TagCSVFile, TaggerModelFile},
@@ -21,7 +23,7 @@ use wdtagger::{
     tags::LabelTags,
 };
 
-use crate::file::{CaptionResult, TaggingResultDetail};
+use crate::file::{TaggingResultDetail, TaggingResultSimple};
 
 /// Get the target device type.
 fn target_device_type() -> String {
@@ -102,6 +104,7 @@ async fn main() -> Result<()> {
     } else {
         &io.format
     };
+    let batch_size = io.batch_size;
 
     // load pipe
     let threshold = match format {
@@ -153,7 +156,8 @@ async fn main() -> Result<()> {
             }
 
             // progress bar
-            let pbar = indicatif::ProgressBar::new(image_files.len() as u64);
+            let pbar =
+                indicatif::ProgressBar::new(((image_files.len() - 1) / batch_size + 1) as u64);
             pbar.set_style(indicatif::ProgressStyle::default_bar().template(
                 "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
             )?);
@@ -162,45 +166,68 @@ async fn main() -> Result<()> {
             let pipe = Arc::new(Mutex::new(pipe));
 
             futures::stream::iter(image_files)
-                .map(|image_path| {
+                .chunks_timeout(batch_size, Duration::from_millis(100))
+                .map(|image_paths| {
                     let pbar = pbar.clone();
                     let pipe = Arc::clone(&pipe);
 
                     async move {
-                        pbar.set_message(format!("{}", image_path.display()));
-                        let img = image::open(&image_path)?;
-                        let result = pipe.lock().unwrap().predict(img)?;
+                        pbar.set_message(format!(
+                            "{} and {batch_size} images...",
+                            image_paths.first().unwrap().display()
+                        ));
+                        // let img = image::open(&image_path)?;
+                        let imgs = image_paths
+                            .iter()
+                            .map(|path| {
+                                image::open(path).map_err(|e| {
+                                    anyhow::anyhow!(
+                                        "Failed to open image {}: {}",
+                                        path.display(),
+                                        e
+                                    )
+                                })
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+
+                        let results = tokio::task::block_in_place(|| {
+                            pipe.lock().unwrap().predict_batch(imgs.iter().collect())
+                        })?;
 
                         match format {
                             Some(OutputFormat::Json) => {
-                                let save_path = if let Some(output_dir) = output {
-                                    let mut path = PathBuf::from_str(output_dir)?;
-                                    path.push(image_path.file_name().unwrap());
-                                    file::get_path_with_extension(path, "json")
-                                } else {
-                                    file::get_path_with_extension(&image_path, "json")
-                                };
+                                for (image_path, result) in image_paths.iter().zip(results.iter()) {
+                                    let save_path = if let Some(output_dir) = output {
+                                        let mut path = PathBuf::from_str(output_dir)?;
+                                        path.push(image_path.file_name().unwrap());
+                                        file::get_path_with_extension(path, "json")
+                                    } else {
+                                        file::get_path_with_extension(&image_path, "json")
+                                    };
 
-                                let result = CaptionResult::from(result);
-                                file::write_as_json(&save_path, &result).await?;
+                                    let result = TaggingResultSimple::from(result.clone());
+                                    file::write_as_json(&save_path, &result).await?;
+                                }
                             }
                             Some(OutputFormat::Jsonl) => {
                                 unimplemented!("Jsonl output is not implemented yet")
                             }
                             Some(OutputFormat::Caption) => {
-                                let save_path = if let Some(output_dir) = output {
-                                    let mut path = PathBuf::from_str(output_dir)?;
-                                    path.push(image_path.file_name().unwrap());
-                                    file::get_path_with_extension(path, "txt")
-                                } else {
-                                    file::get_path_with_extension(&image_path, "txt")
-                                };
-                                file::write_as_caption(&save_path, &result).await?;
+                                for (image_path, result) in image_paths.iter().zip(results.iter()) {
+                                    let save_path = if let Some(output_dir) = output {
+                                        let mut path = PathBuf::from_str(output_dir)?;
+                                        path.push(image_path.file_name().unwrap());
+                                        file::get_path_with_extension(path, "txt")
+                                    } else {
+                                        file::get_path_with_extension(&image_path, "txt")
+                                    };
+                                    file::write_as_caption(&save_path, &result).await?;
+                                }
                             }
                             None => {} // do nothing
                         }
 
-                        pbar.inc(1);
+                        pbar.inc(batch_size as u64);
 
                         anyhow::Ok(())
                     }

@@ -120,4 +120,8 @@ pub struct InputOutput {
     /// Output format
     #[arg(short, long)]
     pub format: Option<OutputFormat>,
+
+    /// Batch size for processing
+    #[arg(short, long, default_value_t = 1)]
+    pub batch_size: usize,
 }
