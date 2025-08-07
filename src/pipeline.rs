@@ -110,7 +110,7 @@ impl TaggingPipeline {
     /// Predict the tags of a batch of images.
     pub fn predict_batch(
         &mut self,
-        images: Vec<DynamicImage>,
+        images: Vec<&DynamicImage>,
     ) -> Result<Vec<TaggingResult>, TaggerError> {
         let tensor = self.preprocessor.process_batch(images)?;
         let probs = self.model.predict(tensor)?;
@@ -162,7 +162,10 @@ mod test {
             TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::cpu())
                 .unwrap();
         let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
-        let result = pipeline.predict(image).unwrap();
+        let results = pipeline
+            .predict_batch(vec![&image, &image, &image])
+            .unwrap();
+        let result = results.first().unwrap();
 
         dbg!("Rating:", &result.rating);
 
@@ -211,7 +214,10 @@ mod test {
             TaggingPipeline::from_pretrained("SmilingWolf/wd-swinv2-tagger-v3", Device::coreml())
                 .unwrap();
         let image = image::open("assets/sample1_3x1024x1024.webp").unwrap();
-        let result = pipeline.predict(image).unwrap();
+        let results = pipeline
+            .predict_batch(vec![&image, &image, &image])
+            .unwrap();
+        let result = results.first().unwrap();
 
         dbg!("Rating:", &result.rating);
 

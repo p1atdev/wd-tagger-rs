@@ -6,7 +6,7 @@ use ndarray::{Array, Axis, Ix4};
 
 pub trait ImageProcessor {
     fn process(&self, iamge: &DynamicImage) -> Result<Array<f32, Ix4>, TaggerError>;
-    fn process_batch(&self, images: Vec<DynamicImage>) -> Result<Array<f32, Ix4>, TaggerError> {
+    fn process_batch(&self, images: Vec<&DynamicImage>) -> Result<Array<f32, Ix4>, TaggerError> {
         let mut image_tensors = Vec::new();
 
         for image in images {
