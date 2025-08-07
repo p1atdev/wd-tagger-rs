@@ -1,11 +1,17 @@
 mod args;
 mod file;
+mod tag;
 
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 use args::{Cli, ModelPreset, ModelVersion, OutputFormat};
 use clap::Parser;
+use futures::{StreamExt, TryStreamExt};
 use wdtagger::{
     config::ModelConfig,
     file::{ConfigFile, HfFile, TagCSVFile, TaggerModelFile},
@@ -14,6 +20,8 @@ use wdtagger::{
     tagger::{Device, TaggerModel},
     tags::LabelTags,
 };
+
+use crate::file::{CaptionResult, TaggingResultDetail};
 
 /// Get the target device type.
 fn target_device_type() -> String {
@@ -97,8 +105,8 @@ async fn main() -> Result<()> {
 
     // load pipe
     let threshold = match format {
-        Some(OutputFormat::Json) | Some(OutputFormat::Jsonl) => 0f32, // save all predictions
-        Some(OutputFormat::Caption) | None => io.threshold, // keep predictions above threshold
+        Some(OutputFormat::Jsonl) => 0f32, // save all predictions
+        Some(OutputFormat::Json) | Some(OutputFormat::Caption) | None => io.threshold, // keep predictions above threshold
     };
     let mut pipe = TaggingPipeline::new(model, preprocessor, label_tags, &threshold);
 
@@ -118,6 +126,7 @@ async fn main() -> Result<()> {
                     };
                     println!("Saving result to: {save_path:?}");
 
+                    let result = TaggingResultDetail::from(result);
                     file::write_as_json(&save_path, &result).await?;
                 }
                 Some(OutputFormat::Jsonl) => unimplemented!("Jsonl output is not implemented yet"),
@@ -135,7 +144,72 @@ async fn main() -> Result<()> {
             };
         }
         false => {
-            unimplemented!("Folder input is not implemented yet");
+            let image_files = file::get_image_files(input.to_str().unwrap()).await?;
+            println!("Found {} image files", image_files.len());
+            if let Some(output_dir) = output {
+                if !PathBuf::from_str(output_dir)?.exists() {
+                    file::create_dir(output_dir).await?;
+                }
+            }
+
+            // progress bar
+            let pbar = indicatif::ProgressBar::new(image_files.len() as u64);
+            pbar.set_style(indicatif::ProgressStyle::default_bar().template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+            )?);
+
+            let pbar = Arc::new(pbar);
+            let pipe = Arc::new(Mutex::new(pipe));
+
+            futures::stream::iter(image_files)
+                .map(|image_path| {
+                    let pbar = pbar.clone();
+                    let pipe = Arc::clone(&pipe);
+
+                    async move {
+                        pbar.set_message(format!("{}", image_path.display()));
+                        let img = image::open(&image_path)?;
+                        let result = pipe.lock().unwrap().predict(img)?;
+
+                        match format {
+                            Some(OutputFormat::Json) => {
+                                let save_path = if let Some(output_dir) = output {
+                                    let mut path = PathBuf::from_str(output_dir)?;
+                                    path.push(image_path.file_name().unwrap());
+                                    file::get_path_with_extension(path, "json")
+                                } else {
+                                    file::get_path_with_extension(&image_path, "json")
+                                };
+
+                                let result = CaptionResult::from(result);
+                                file::write_as_json(&save_path, &result).await?;
+                            }
+                            Some(OutputFormat::Jsonl) => {
+                                unimplemented!("Jsonl output is not implemented yet")
+                            }
+                            Some(OutputFormat::Caption) => {
+                                let save_path = if let Some(output_dir) = output {
+                                    let mut path = PathBuf::from_str(output_dir)?;
+                                    path.push(image_path.file_name().unwrap());
+                                    file::get_path_with_extension(path, "txt")
+                                } else {
+                                    file::get_path_with_extension(&image_path, "txt")
+                                };
+                                file::write_as_caption(&save_path, &result).await?;
+                            }
+                            None => {} // do nothing
+                        }
+
+                        pbar.inc(1);
+
+                        anyhow::Ok(())
+                    }
+                })
+                .buffer_unordered(4)
+                .try_collect::<Vec<_>>()
+                .await?;
+
+            pbar.finish();
         }
     }
 

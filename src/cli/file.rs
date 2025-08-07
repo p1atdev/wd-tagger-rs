@@ -8,6 +8,8 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use wdtagger::pipeline::TaggingResult;
 
+use crate::tag::fix_tag_underscore;
+
 /// Supported image extensions.
 pub const IMAGE_EXTENSIONS: [&str; 4] = ["jpg", "jpeg", "png", "webp"];
 
@@ -80,13 +82,13 @@ pub fn get_path_with_extension<P: AsRef<Path>>(path: P, ext: &str) -> PathBuf {
 }
 
 #[derive(Serialize, Deserialize)]
-struct TaggingResultForSave {
+pub struct TaggingResultDetail {
     rating: HashMap<String, f32>,
     character: HashMap<String, f32>,
     general: HashMap<String, f32>,
 }
 
-impl From<TaggingResult> for TaggingResultForSave {
+impl From<TaggingResult> for TaggingResultDetail {
     fn from(result: TaggingResult) -> Self {
         Self {
             rating: result.rating.into_iter().collect::<HashMap<_, _>>(),
@@ -96,32 +98,83 @@ impl From<TaggingResult> for TaggingResultForSave {
     }
 }
 
-pub async fn write_as_json(path: &PathBuf, result: &TaggingResult) -> Result<()> {
-    let result = TaggingResultForSave::from(result.clone());
+#[derive(Serialize, Debug, Clone)]
+pub struct TaggingResultSimple {
+    pub rating: String,
+    pub character: Vec<String>,
+    pub general: Vec<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct CaptionResult {
+    pub tags: String,
+    pub tagger: TaggingResultSimple,
+}
+
+impl From<TaggingResult> for TaggingResultSimple {
+    fn from(result: TaggingResult) -> Self {
+        Self {
+            rating: result
+                .rating
+                .first()
+                .map_or("".to_string(), |(k, _)| k.clone()),
+            character: result
+                .character
+                .keys()
+                .map(|tag| fix_tag_underscore(&tag))
+                .collect(),
+            general: result
+                .general
+                .keys()
+                .map(|tag| fix_tag_underscore(&tag))
+                .collect(),
+        }
+    }
+}
+
+impl From<TaggingResult> for CaptionResult {
+    fn from(result: TaggingResult) -> Self {
+        let mut tags = result.character.keys().cloned().collect::<Vec<String>>();
+        tags.extend(result.general.keys().cloned().collect::<Vec<String>>());
+
+        let tags = tags
+            .iter()
+            .map(|tag| fix_tag_underscore(tag))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        Self {
+            tags,
+            tagger: TaggingResultSimple::from(result),
+        }
+    }
+}
+
+pub async fn write_as_json<T: Serialize>(path: &PathBuf, result: &T) -> Result<()> {
     let json = serde_json::to_string_pretty(&result)?;
     write_text_to_file(&json, path).await
 }
 
 pub async fn write_as_caption(path: &PathBuf, result: &TaggingResult) -> Result<()> {
-    let rating_tag = result
-        .rating
-        .first()
-        .map(|(k, _)| k.clone())
-        .unwrap_or("".to_string());
+    // let rating_tag = result
+    //     .rating
+    //     .first()
+    //     .map(|(k, _)| k.clone())
+    //     .unwrap_or("".to_string());
     let character_tags = result
         .character
         .keys()
-        .cloned()
+        .map(|tag| fix_tag_underscore(&tag))
         .collect::<Vec<_>>()
         .join(", ");
     let general_tags = result
         .general
         .keys()
-        .cloned()
+        .map(|tag| fix_tag_underscore(&tag))
         .collect::<Vec<_>>()
         .join(", ");
 
-    let caption = vec![character_tags, general_tags, rating_tag]
+    let caption = vec![character_tags, general_tags]
         .iter()
         .filter(|s| !s.is_empty())
         .cloned()
