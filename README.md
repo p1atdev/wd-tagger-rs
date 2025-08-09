@@ -212,27 +212,27 @@ https://developer.nvidia.com/cudnn-downloads
 
 ##### onnxruntime 
 
-Downlaod prebuilt onnxruntime from ONNX Runtime's releases. (e.g. `onnxruntime-linux-x64-gpu-1.19.0.tgz`):
+Downlaod prebuilt onnxruntime from ONNX Runtime's releases. (e.g. `onnxruntime-linux-x64-gpu-1.22.0.tgz`):
 
-https://github.com/microsoft/onnxruntime/releases/tag/v1.19.0 
+https://github.com/microsoft/onnxruntime/releases/tag/v1.22.0 
 
 Then extract it and place files to `~/.local/share`, and set `LD_LIBRARY_PATH`.
 
 For example:
 
 ```bash
-wget https://github.com/microsoft/onnxruntime/releases/download/v1.19.0/onnxruntime-linux-x64-gpu-1.19.0.tgz
-tar -xvf onnxruntime-linux-x64-gpu-1.19.0.tgz
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-gpu-1.22.0.tgz
+tar -xvf onnxruntime-linux-x64-gpu-1.22.0.tgz
 mkdir -p ~/.local/share/wdtagger/onnxruntime
-mv onnxruntime-linux-x64-gpu-1.19.0 ~/.local/share/wdtagger/onnxruntime/1.19.0
-rm onnxruntime-linux-x64-gpu-1.19.0.tgz
+mv onnxruntime-linux-x64-gpu-1.22.0 ~/.local/share/wdtagger/onnxruntime/1.22.0
+rm onnxruntime-linux-x64-gpu-1.22.0.tgz
 ```
 
 Add the following to your `.bashrc` or `.zshrc`:
 
 ```bash
 # wdtagger
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/share/wdtagger/onnxruntime/1.19.0/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.local/share/wdtagger/onnxruntime/1.22.0/lib
 ```
 
 > [!NOTE]
