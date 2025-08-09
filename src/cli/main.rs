@@ -156,8 +156,7 @@ async fn main() -> Result<()> {
             }
 
             // progress bar
-            let pbar =
-                indicatif::ProgressBar::new(((image_files.len() - 1) / batch_size + 1) as u64);
+            let pbar = indicatif::ProgressBar::new(image_files.len() as u64);
             pbar.set_style(indicatif::ProgressStyle::default_bar().template(
                 "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
             )?);
